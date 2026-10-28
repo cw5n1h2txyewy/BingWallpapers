@@ -12,27 +12,30 @@ public final class DownloadService extends Service {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private static final String CHANNEL = "downloads";
 
+    @Override protected void attachBaseContext(Context base) { super.attachBaseContext(AppSettings.wrap(base)); }
+
     @Override public void onCreate() {
         super.onCreate();
         getSystemService(NotificationManager.class).createNotificationChannel(
-                new NotificationChannel(CHANNEL, "图片下载", NotificationManager.IMPORTANCE_LOW));
+                new NotificationChannel(CHANNEL, AppSettings.text(this, R.string.download_channel), NotificationManager.IMPORTANCE_LOW));
     }
 
     private Notification notification(String message, boolean ongoing) {
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(this, CHANNEL).setSmallIcon(android.R.drawable.stat_sys_download)
-                .setContentTitle("必应美图").setContentText(message).setContentIntent(open).setOngoing(ongoing).build();
+                .setContentTitle(AppSettings.text(this, R.string.app_name)).setContentText(message).setContentIntent(open).setOngoing(ongoing).build();
     }
 
     private void report(String message, boolean complete) {
-        getSharedPreferences("bing", MODE_PRIVATE).edit().putString("status", message).apply();
+        getSharedPreferences("bing", MODE_PRIVATE).edit().putString("status", message)
+                .putString("status-language", AppSettings.wrap(getApplicationContext()).getResources().getConfiguration().getLocales().get(0).toLanguageTag()).apply();
         sendBroadcast(new Intent(ACTION).setPackage(getPackageName()).putExtra("message", message).putExtra("complete", complete));
         if (Build.VERSION.SDK_INT < 33 || checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED)
             getSystemService(NotificationManager.class).notify(1, notification(message, true));
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        startForeground(1, notification("正在准备下载…", true));
+        startForeground(1, notification(AppSettings.text(this, R.string.preparing), true));
         if (intent == null) { stopSelf(startId); return START_NOT_STICKY; }
         String json = intent.getStringExtra("images");
         String size = intent.getStringExtra("resolution");
@@ -43,7 +46,7 @@ public final class DownloadService extends Service {
                 JSONArray array = new JSONArray(json);
                 Resolution resolution = Resolution.valueOf(size);
                 for (int i = 0; i < array.length(); i++) {
-                    report("正在下载 " + (i + 1) + "/" + array.length() + " · " + resolution.label, false);
+                    report(AppSettings.text(this, R.string.download_progress, i + 1, array.length(), resolution.label(AppSettings.wrap(getApplicationContext()))), false);
                     try {
                         ImageStore.Saved result = new ImageStore(this).save(new Wallpaper(array.getJSONObject(i)), resolution);
                         if (result.existing()) skipped++; else success++;
@@ -52,7 +55,7 @@ public final class DownloadService extends Service {
                     }
                 }
             } catch (JSONException | RuntimeException error) { failed++; lastError = error.getMessage(); }
-            String result = "下载完成：保存 " + success + "，已存在 " + skipped + "，失败 " + failed;
+            String result = AppSettings.text(this, R.string.download_result, success, skipped, failed);
             if (failed > 0) result += "\n" + lastError;
             report(result, true);
             // A newer queued start must keep the service and its foreground notification alive.
@@ -66,7 +69,7 @@ public final class DownloadService extends Service {
     }
 
     @Override public void onTimeout(int startId, int fgsType) {
-        report("下载超时，请重新打开应用重试", true);
+        report(AppSettings.text(this, R.string.download_timeout), true);
         worker.shutdownNow(); stopForeground(STOP_FOREGROUND_REMOVE); stopSelf();
     }
     @Override public IBinder onBind(Intent intent) { return null; }

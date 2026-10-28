@@ -2,19 +2,22 @@ package io.github.bingwallpapers;
 
 /** Bing size requests; downloaded dimensions are checked before publishing. */
 public enum Resolution {
-    UHD("UHD 原图 · 通常为 4K", "UHD", 0, 0),
-    FHD("1920 × 1080 · 全高清", "1920x1080", 1920, 1080),
-    WUXGA("1920 × 1200", "1920x1200", 1920, 1200),
-    PORTRAIT("1080 × 1920 · 竖屏", "1080x1920", 1080, 1920);
+    UHD(R.string.size_uhd, "UHD", 0, 0),
+    FHD(R.string.size_fhd, "1920x1080", 1920, 1080),
+    WUXGA(R.string.size_wuxga, "1920x1200", 1920, 1200),
+    PORTRAIT(R.string.size_portrait, "1080x1920", 1080, 1920);
 
-    public final String label;
+    private final int labelResource;
     public final String suffix;
     public final int width;
     public final int height;
 
-    Resolution(String label, String suffix, int width, int height) {
-        this.label = label; this.suffix = suffix; this.width = width; this.height = height;
+    Resolution(int labelResource, String suffix, int width, int height) {
+        this.labelResource = labelResource; this.suffix = suffix; this.width = width; this.height = height;
     }
+
+    /** Return the resolution label in the active interface language. */
+    public String label(android.content.Context context) { return context.getString(labelResource); }
 
     public boolean accepts(int actualWidth, int actualHeight) {
         return this == UHD ? actualWidth > 1920 && actualHeight >= 1080
@@ -22,8 +25,8 @@ public enum Resolution {
     }
 
     public String filename(String date, int actualWidth, int actualHeight) {
-        if (!date.matches("[0-9]{8}")) throw new IllegalArgumentException("无效的图片日期：" + date);
-        if (!accepts(actualWidth, actualHeight)) throw new IllegalArgumentException("Bing 未提供请求的分辨率，实际为 " + actualWidth + "×" + actualHeight);
+        if (!date.matches("[0-9]{8}")) throw new IllegalArgumentException("Invalid photo date: " + date);
+        if (!accepts(actualWidth, actualHeight)) throw new IllegalArgumentException("Bing size mismatch: " + actualWidth + "×" + actualHeight);
         return date + (actualWidth == 1920 && actualHeight == 1080 ? "" : "-" + actualWidth + "x" + actualHeight) + ".jpg";
     }
 }

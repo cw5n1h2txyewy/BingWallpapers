@@ -19,6 +19,11 @@ public final class DeviceChecks extends Instrumentation {
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
+            if (arguments != null && arguments.containsKey("appearance")) {
+                AppearanceChecks.run(getTargetContext());
+                result.putString("stream", "PASS: Chinese/English/Japanese in light and dark, system locale/theme, service strings, palette, format arguments and independent Bing region\n");
+                finish(Activity.RESULT_OK, result); return;
+            }
             if (arguments != null && arguments.containsKey("cache")) {
                 CacheChecks.run(getTargetContext());
                 result.putString("stream", "PASS: warm memory reuse, cold disk reuse, corrupt preview recovery, explicit clear and bounded disk size\n");
@@ -45,7 +50,7 @@ public final class DeviceChecks extends Instrumentation {
                 finish(Activity.RESULT_OK, result);
                 return;
             }
-            List<Wallpaper> images = BingClient.parse(BingClient.metadata("zh-CN"));
+            List<Wallpaper> images = BingClient.parse(BingClient.metadata(AppSettings.wrap(getTargetContext()), "zh-CN"));
             check(images.size() > 0, "No Bing images");
             Wallpaper first = images.get(0);
             check(new Wallpaper(first.toJson()).date.equals(first.date), "Date did not round-trip");

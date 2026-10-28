@@ -15,7 +15,7 @@ import org.json.*;
 
 /** Recent Bing photographs, detail viewer and the download-directory photo library. */
 public final class MainActivity extends Activity {
-    private static final int GREEN = Color.rgb(39, 99, 75), INK = Color.rgb(29, 48, 39);
+    private int GREEN, INK;
     private final ExecutorService network = Executors.newFixedThreadPool(3);
     private ThumbnailCache previews;
     private final SnapshotCache<List<ImageStore.Saved>> librarySnapshots = new SnapshotCache<>(5 * 60 * 1000);
@@ -31,7 +31,7 @@ public final class MainActivity extends Activity {
     private boolean gallery;
     private final BroadcastReceiver updates = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
-            status.setText(intent.getStringExtra("message"));
+            status.setText(AppSettings.lastStatus(MainActivity.this));
             if (intent.getBooleanExtra("complete", false)
                     && librarySnapshots.get(librarySourceKey(), System.currentTimeMillis()) == null) {
                 librarySnapshots.clear(); libraryPage = null;
@@ -40,8 +40,11 @@ public final class MainActivity extends Activity {
         }
     };
 
+    @Override protected void attachBaseContext(Context base) { super.attachBaseContext(AppSettings.wrap(base)); }
+
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        GREEN = getColor(R.color.accent); INK = getColor(R.color.primary_text);
         previews = new ThumbnailCache(new File(getCacheDir(), "previews-v1"), 64L * 1024 * 1024);
         if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::navigateBack);
@@ -68,7 +71,7 @@ public final class MainActivity extends Activity {
         // Signature permission protects older releases; API 33+ also marks it unexported.
         registerReceiver(updates, new IntentFilter(DownloadService.ACTION), "io.github.bingwallpapers.INTERNAL", null,
                 Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
-        status.setText(getSharedPreferences("bing", MODE_PRIVATE).getString("status", "图片保存至 DCIM/BingWallpapers"));
+        status.setText(AppSettings.lastStatus(this));
     }
     @Override protected void onStop() { unregisterReceiver(updates); super.onStop(); }
     @Override protected void onResume() {
@@ -102,12 +105,12 @@ public final class MainActivity extends Activity {
     }
     private Button button(String label, Runnable action) {
         Button button = new Button(this); button.setText(label); button.setTextColor(GREEN); button.setAllCaps(false);
-        button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(225, 236, 226)));
+        button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.button_background)));
         button.setElevation(0);
         button.setOnClickListener(view -> action.run()); return button;
     }
     private void render() {
-        root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(Color.rgb(245, 247, 243));
+        root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(getColor(R.color.background));
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             android.graphics.Insets bars = Build.VERSION.SDK_INT >= 30
                     ? insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout())
@@ -117,23 +120,23 @@ public final class MainActivity extends Activity {
         setContentView(root);
         root.requestApplyInsets();
         LinearLayout header = new LinearLayout(this); header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView brand = text(selected != null ? "‹  每日风景" : "必应美图", 26, INK);
+        TextView brand = text(getString(selected != null ? R.string.detail_title : R.string.app_name), 26, INK);
         brand.setTypeface(null, Typeface.BOLD);
         header.addView(brand, new LinearLayout.LayoutParams(0, dp(64), 1));
         if (selected != null) brand.setOnClickListener(view -> { selected = null; render(); });
         header.addView(button("⋮", this::menu), new LinearLayout.LayoutParams(dp(52), dp(48))); root.addView(header);
         if (selected == null) {
             LinearLayout tabs = new LinearLayout(this);
-            tabs.addView(button("最近八天", () -> showTab(false)), new LinearLayout.LayoutParams(0, dp(52), 1));
-            tabs.addView(button("已下载", () -> showTab(true)), new LinearLayout.LayoutParams(0, dp(52), 1));
+            tabs.addView(button(getString(R.string.recent), () -> showTab(false)), new LinearLayout.LayoutParams(0, dp(52), 1));
+            tabs.addView(button(getString(R.string.downloaded), () -> showTab(true)), new LinearLayout.LayoutParams(0, dp(52), 1));
             root.addView(tabs);
-            root.addView(text(gallery ? "你的风景收藏" : "每天一张，发现世界之美", 14, GREEN));
+            root.addView(text(getString(gallery ? R.string.gallery_tagline : R.string.recent_tagline), 14, GREEN));
         }
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true);
         content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(12), 0, dp(12), dp(12));
         scroll.addView(content); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         body = scroll;
-        status = text(getSharedPreferences("bing", MODE_PRIVATE).getString("status", "图片保存至 DCIM/BingWallpapers"), 12, GREEN);
+        status = text(AppSettings.lastStatus(this), 12, GREEN);
         status.setMaxLines(4); root.addView(status);
         if (selected != null) detail(); else if (gallery) library(); else recent();
     }
@@ -157,11 +160,11 @@ public final class MainActivity extends Activity {
 
     private ImageView photo(String key, String url, Uri uri, int height, boolean crop) {
         ImageView photo = new ImageView(this);
-        photo.setContentDescription("风景图片");
+        photo.setContentDescription(getString(R.string.photo_description));
         photo.setScaleType(crop ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.FIT_CENTER);
-        photo.setBackgroundColor(Color.rgb(218, 228, 218));
+        photo.setBackgroundColor(getColor(R.color.photo_placeholder));
         photo.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(height)));
-        GradientDrawable shape = new GradientDrawable(); shape.setColor(Color.rgb(218, 228, 218)); shape.setCornerRadius(dp(16));
+        GradientDrawable shape = new GradientDrawable(); shape.setColor(getColor(R.color.photo_placeholder)); shape.setCornerRadius(dp(16));
         photo.setBackground(shape); photo.setClipToOutline(true);
         String previewKey = uri == null ? key + "|" + crop : key + "|" + getSharedPreferences("bing", MODE_PRIVATE).getLong("preview-revision", 0);
         Bitmap ready = previews.peek(previewKey);
@@ -170,7 +173,7 @@ public final class MainActivity extends Activity {
             try {
                 Bitmap bitmap = previews.get(previewKey, () -> {
                     if (uri != null) return new ImageStore(this).thumbnail(uri);
-                    ByteArrayOutputStream data = new ByteArrayOutputStream(); BingClient.fetch(url, data, 8 * 1024 * 1024);
+                    ByteArrayOutputStream data = new ByteArrayOutputStream(); BingClient.fetch(this, url, data, 8 * 1024 * 1024);
                     byte[] raw = data.toByteArray();
                     BitmapFactory.Options options = new BitmapFactory.Options();
                     options.inSampleSize = crop ? 2 : 1;
@@ -179,7 +182,7 @@ public final class MainActivity extends Activity {
                 // Retained pages may be off screen while their previews finish loading.
                 runOnUiThread(() -> { if (!isDestroyed()) photo.setImageBitmap(bitmap); });
             } catch (IOException | RuntimeException error) {
-                runOnUiThread(() -> { if (!isDestroyed()) photo.setContentDescription("预览加载失败，请刷新重试"); });
+                runOnUiThread(() -> { if (!isDestroyed()) photo.setContentDescription(getString(R.string.preview_failed)); });
             }
         });
         return photo;
@@ -189,8 +192,8 @@ public final class MainActivity extends Activity {
         if (recentPage != null) { replaceBody(recentPage); return; }
         List<Wallpaper> displayed = new ArrayList<>(images);
         ListView page = new ListView(this);
-        if (displayed.isEmpty()) page.addHeaderView(text("正在获取 Bing 图片…\n若加载失败，请检查网络后点击刷新。", 16, INK));
-        page.addFooterView(button("刷新最近图片", this::load), null, true);
+        if (displayed.isEmpty()) page.addHeaderView(text(getString(R.string.loading_recent), 16, INK));
+        page.addFooterView(button(getString(R.string.refresh_recent), this::load), null, true);
         page.setAdapter(new BaseAdapter() {
             @Override public int getCount() { return displayed.size(); }
             @Override public Wallpaper getItem(int index) { return displayed.get(index); }
@@ -201,7 +204,7 @@ public final class MainActivity extends Activity {
                 card.setPadding(dp(12), 0, dp(12), dp(12));
                 card.addView(photo(image.base, image.url("1920x1080"), null, 210, true));
                 card.addView(text(image.date + "   ·   " + image.title, 17, INK));
-                card.addView(text(image.copyright, 12, Color.DKGRAY));
+                card.addView(text(image.copyright, 12, getColor(R.color.secondary_text)));
                 return card;
             }
         });
@@ -216,14 +219,14 @@ public final class MainActivity extends Activity {
         Wallpaper image = selected;
         content.addView(photo(image.base + "detail", image.url("1920x1080"), null, 300, false));
         content.addView(text(image.title, 24, INK)); content.addView(text(image.date, 14, GREEN));
-        content.addView(text(image.copyright, 15, Color.DKGRAY));
-        content.addView(text("保留 Bing 原始 JPEG；UHD 按实际尺寸命名。", 13, Color.DKGRAY));
-        content.addView(button("下载图片", () -> choose(Collections.singletonList(image))));
-        content.addView(button("分享图片链接", () -> {
+        content.addView(text(image.copyright, 15, getColor(R.color.secondary_text)));
+        content.addView(text(getString(R.string.original_note), 13, getColor(R.color.secondary_text)));
+        content.addView(button(getString(R.string.download), () -> choose(Collections.singletonList(image))));
+        content.addView(button(getString(R.string.share_link), () -> {
             Intent share = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, image.copyright + "\n" + image.url("UHD"));
-            startActivity(Intent.createChooser(share, "分享美图"));
+            startActivity(Intent.createChooser(share, getString(R.string.share)));
         }));
-        content.addView(button("返回最近图片", () -> { selected = null; gallery = false; render(); }));
+        content.addView(button(getString(R.string.back_recent), () -> { selected = null; gallery = false; render(); }));
     }
 
     private void library() {
@@ -232,7 +235,7 @@ public final class MainActivity extends Activity {
         if (cached != null && libraryPage != null && key.equals(libraryPageKey)) { replaceBody(libraryPage); return; }
         libraryAccessNotice();
         if (cached != null) { bindLibrary(cached, key); return; }
-        content.addView(text("正在读取已下载图片…", 15, INK));
+        content.addView(text(getString(R.string.loading_library), 15, INK));
         if (key.equals(loadingLibraryKey)) return;
         loadingLibraryKey = key;
         long request = ++libraryRequest;
@@ -252,7 +255,7 @@ public final class MainActivity extends Activity {
                     loadingLibraryKey = null;
                     if (gallery && selected == null) {
                         content.removeAllViews(); libraryAccessNotice();
-                        content.addView(text("读取目录失败：" + error.getMessage(), 15, INK));
+                        content.addView(text(getString(R.string.directory_failed, error.getMessage()), 15, INK));
                     }
                 }
             }); }
@@ -268,8 +271,8 @@ public final class MainActivity extends Activity {
 
     /** Bind a successful directory snapshot to its retained page. */
     private void bindLibrary(List<ImageStore.Saved> saved, String key) {
-        content.addView(text("找到 " + saved.size() + " 张日期命名的图片", 14, GREEN));
-        if (saved.isEmpty()) content.addView(text("暂无匹配图片。请选择保存目录，支持 YYYYMMDD.jpg 和 YYYYMMDD-宽x高.jpg。", 16, INK));
+        content.addView(text(getString(R.string.photo_count, saved.size()), 14, GREEN));
+        if (saved.isEmpty()) content.addView(text(getString(R.string.empty_library), 16, INK));
         showLibrary(saved); libraryPageKey = key;
     }
 
@@ -283,16 +286,16 @@ public final class MainActivity extends Activity {
     /** Request a directory grant independent of media indexing and photo permissions. */
     private void libraryAccessNotice() {
         boolean selectedDirectory = new ImageStore(this).directoryUri() != null;
-        content.addView(text(selectedDirectory ? "DCIM/BingWallpapers · 直接读取目录"
-                : "请选择一次 DCIM/BingWallpapers 目录，以读取未被系统相册收录的旧图片。", 14, INK));
-        content.addView(button(selectedDirectory ? "重新选择保存目录" : "选择保存目录", () -> {
+        content.addView(text(selectedDirectory ? getString(R.string.directory_ready)
+                : getString(R.string.directory_prompt), 14, INK));
+        content.addView(button(selectedDirectory ? getString(R.string.reselect_directory) : getString(R.string.select_directory), () -> {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
                     .putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADCIM%2FBingWallpapers"));
             try { startActivityForResult(intent, 3); }
-            catch (ActivityNotFoundException error) { status.setText("未找到系统文件选择器"); }
+            catch (ActivityNotFoundException error) { status.setText(getString(R.string.no_picker)); }
         }));
-        content.addView(button("刷新已下载", this::refreshLibrary));
+        content.addView(button(getString(R.string.refresh_library), this::refreshLibrary));
     }
 
     /** Bind only visible rows, keeping large legacy collections out of bitmap memory. */
@@ -319,7 +322,7 @@ public final class MainActivity extends Activity {
             if (index < list.getHeaderViewsCount()) return;
             ImageStore.Saved item = saved.get(index - list.getHeaderViewsCount());
             try { startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(item.uri(), "image/*").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)); }
-            catch (ActivityNotFoundException | SecurityException error) { status.setText("无法打开图片，请检查照片访问权限"); }
+            catch (ActivityNotFoundException | SecurityException error) { status.setText(R.string.open_failed); }
         });
         libraryPage = list; replaceBody(list);
     }
@@ -330,16 +333,16 @@ public final class MainActivity extends Activity {
             try {
                 new ImageStore(this).selectDirectory(data.getData());
                 librarySnapshots.clear(); libraryPage = null; gallery = true; selected = null; render();
-            } catch (IllegalArgumentException | SecurityException error) { status.setText("目录授权失败：" + error.getMessage()); }
+            } catch (IllegalArgumentException | SecurityException error) { status.setText(getString(R.string.directory_grant_failed, error.getMessage())); }
         }
     }
 
     private void menu() {
-        new AlertDialog.Builder(this).setTitle("必应美图").setItems(new String[]{"刷新", "下载全部最近图片", "切换地区", "允许下载通知", "关于"}, (dialog, which) -> {
+        new AlertDialog.Builder(this).setTitle(R.string.app_name).setItems(new String[]{getString(R.string.refresh), getString(R.string.download_all), getString(R.string.change_region), getString(R.string.notifications), getString(R.string.theme), getString(R.string.language), getString(R.string.about)}, (dialog, which) -> {
             switch (which) {
                 case 0 -> { if (gallery && selected == null) refreshLibrary(); else load(); }
-                case 1 -> { if (images.isEmpty()) status.setText("请先加载图片"); else choose(new ArrayList<>(images)); }
-                case 2 -> new AlertDialog.Builder(this).setTitle("Bing 地区").setItems(new String[]{"中国", "美国", "日本"}, (d, index) -> {
+                case 1 -> { if (images.isEmpty()) status.setText(getString(R.string.load_first)); else choose(new ArrayList<>(images)); }
+                case 2 -> new AlertDialog.Builder(this).setTitle(getString(R.string.region_title)).setItems(new String[]{getString(R.string.china), getString(R.string.usa), getString(R.string.japan)}, (d, index) -> {
                     market = new String[]{"zh-CN", "en-US", "ja-JP"}[index];
                     getPreferences(MODE_PRIVATE).edit().putString("market", market).apply();
                     images = new ArrayList<>(); recentPage = null; imagesFetchedAt = 0; lastMetadataAttempt = 0;
@@ -350,13 +353,34 @@ public final class MainActivity extends Activity {
                 }).show();
                 case 3 -> {
                     if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
-                    else status.setText("当前系统无需额外通知权限");
+                    else status.setText(getString(R.string.no_notification_permission_needed));
                 }
-                default -> new AlertDialog.Builder(this).setTitle("必应美图 1.0.4")
-                        .setMessage("独立开发的 Bing 图片浏览与下载工具，非微软官方应用。\n\n保存位置：DCIM/BingWallpapers\n在已下载页选择该目录一次，即可按文件名直接读取旧图片，无需系统相册索引。\n\n图片版权归原作者及权利人所有，请遵守 Bing 使用条款。近期列表由 Bing 接口提供，通常为八天。")
-                        .setPositiveButton("知道了", null).show();
+                case 4 -> showAppearance(true);
+                case 5 -> showAppearance(false);
+                default -> new AlertDialog.Builder(this).setTitle(getString(R.string.about_title, getString(R.string.app_name), "1.0.5"))
+                        .setMessage(R.string.about_body)
+                        .setPositiveButton(getString(R.string.ok), null).show();
             }
         }).show();
+    }
+
+
+    /** Apply a persisted appearance option and recreate only the current Activity. */
+    private void showAppearance(boolean theme) {
+        String key = theme ? "theme" : "language";
+        String[] codes = theme ? new String[]{"system", "light", "dark"} : new String[]{"zh", "en", "ja", "system"};
+        String[] labels = theme ? new String[]{getString(R.string.follow_system), getString(R.string.light), getString(R.string.dark)}
+                : new String[]{"简体中文", "English", "日本語", getString(R.string.follow_system)};
+        String current = getSharedPreferences("appearance", MODE_PRIVATE).getString(key, theme ? "system" : "zh");
+        int selectedIndex = java.util.Arrays.asList(codes).indexOf(current);
+        new AlertDialog.Builder(this).setTitle(theme ? R.string.theme : R.string.language)
+                .setSingleChoiceItems(labels, selectedIndex, (dialog, index) -> {
+                    dialog.dismiss();
+                    if (!codes[index].equals(current)) {
+                        getSharedPreferences("appearance", MODE_PRIVATE).edit().putString(key, codes[index]).apply();
+                        recreate();
+                    }
+                }).setNeutralButton(R.string.cancel, null).show();
     }
 
     private static String encoded(List<Wallpaper> list) throws JSONException {
@@ -365,16 +389,16 @@ public final class MainActivity extends Activity {
     }
     private void choose(List<Wallpaper> list) {
         Resolution[] sizes = Resolution.values(); String[] labels = new String[sizes.length];
-        for (int i = 0; i < sizes.length; i++) labels[i] = sizes[i].label;
-        AlertDialog picker = new AlertDialog.Builder(this).setTitle(list.size() > 1 ? "下载全部 " + list.size() + " 张 · 选择尺寸" : "选择下载尺寸")
+        for (int i = 0; i < sizes.length; i++) labels[i] = sizes[i].label(this);
+        AlertDialog picker = new AlertDialog.Builder(this).setTitle(list.size() > 1 ? getString(R.string.choose_batch_size, list.size()) : getString(R.string.choose_size))
                 .setItems(labels, (dialog, index) -> {
                     dialog.dismiss();
                     try {
                         String array = new JSONObject(encoded(list)).getJSONArray("images").toString();
                         startForegroundService(new Intent(this, DownloadService.class).putExtra("images", array).putExtra("resolution", sizes[index].name()));
-                        status.setText("已加入下载队列 · " + sizes[index].label);
-                    } catch (JSONException | RuntimeException error) { status.setText("启动下载失败：" + error.getMessage()); }
-                }).setNeutralButton("取消", null).create();
+                        status.setText(getString(R.string.queued, sizes[index].label(this)));
+                    } catch (JSONException | RuntimeException error) { status.setText(getString(R.string.start_failed, error.getMessage())); }
+                }).setNeutralButton(getString(R.string.cancel), null).create();
         picker.show();
         // Some platform themes center a sole button; keep this cancel action at the left.
         Button cancel = picker.getButton(AlertDialog.BUTTON_NEUTRAL);
@@ -396,10 +420,10 @@ public final class MainActivity extends Activity {
         lastMetadataAttempt = now;
         String requestedMarket = market;
         loadingMarkets.add(requestedMarket);
-        if (!gallery && selected == null) status.setText(images.isEmpty() ? "正在加载…" : "正在更新，先显示缓存…");
+        if (!gallery && selected == null) status.setText(images.isEmpty() ? getString(R.string.loading) : getString(R.string.updating));
         network.execute(() -> {
             try {
-                String raw = BingClient.metadata(requestedMarket); List<Wallpaper> loaded = BingClient.parse(raw);
+                String raw = BingClient.metadata(this, requestedMarket); List<Wallpaper> loaded = BingClient.parse(raw);
                 long fetchedAt = System.currentTimeMillis();
                 getPreferences(MODE_PRIVATE).edit().putString("cache-" + requestedMarket, raw)
                         .putLong("cache-time-" + requestedMarket, fetchedAt).apply();
@@ -415,7 +439,7 @@ public final class MainActivity extends Activity {
                     if (isDestroyed()) return;
                     loadingMarkets.remove(requestedMarket);
                     if (market.equals(requestedMarket) && !gallery && selected == null)
-                        status.setText("刷新失败" + (images.isEmpty() ? "" : "，显示缓存") + "：" + error.getMessage());
+                        status.setText(getString(images.isEmpty() ? R.string.refresh_failed : R.string.refresh_failed_cached, error.getMessage()));
                 });
             }
         });

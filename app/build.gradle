@@ -7,11 +7,12 @@ android {
         applicationId 'io.github.bingwallpapers'
         minSdk 29
         targetSdk 36
-        versionCode 5
-        versionName '1.0.4'
+        versionCode 6
+        versionName '1.0.5'
         testInstrumentationRunner 'io.github.bingwallpapers.DeviceChecks'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     buildTypes { release { minifyEnabled false } }
+    bundle { language { enableSplit = false } }
 }
 dependencies { testImplementation 'junit:junit:4.13.2' }

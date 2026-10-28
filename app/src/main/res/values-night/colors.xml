@@ -1,0 +1,8 @@
+<resources>
+    <color name="background">#121A16</color>
+    <color name="primary_text">#E4ECE6</color>
+    <color name="secondary_text">#B4C2B8</color>
+    <color name="accent">#99D6B1</color>
+    <color name="button_background">#273D30</color>
+    <color name="photo_placeholder">#26352B</color>
+</resources>

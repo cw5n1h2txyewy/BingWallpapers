@@ -14,7 +14,7 @@ import java.util.*;
 public final class ImageStore {
     public static final String DIRECTORY = "DCIM/BingWallpapers/";
     private final Context context;
-    public ImageStore(Context context) { this.context = context.getApplicationContext(); }
+    public ImageStore(Context context) { this.context = AppSettings.wrap(context.getApplicationContext()); }
 
     public record Saved(Uri uri, String name, boolean existing) {}
 
@@ -22,7 +22,7 @@ public final class ImageStore {
         File temporary = File.createTempFile("bing-", ".jpg", context.getCacheDir());
         try {
             try (OutputStream output = new FileOutputStream(temporary)) {
-                BingClient.fetch(image.url(resolution.suffix), output, 40 * 1024 * 1024);
+                BingClient.fetch(context, image.url(resolution.suffix), output, 40 * 1024 * 1024);
             }
             return publish(temporary, image.date, resolution);
         } finally { if (!temporary.delete()) temporary.deleteOnExit(); }
@@ -34,12 +34,12 @@ public final class ImageStore {
         bounds.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
         if (!"image/jpeg".equals(bounds.outMimeType) || !resolution.accepts(bounds.outWidth, bounds.outHeight)) {
-            throw new IOException("Bing 未提供 " + resolution.label + "，实际为 " + bounds.outWidth + "×" + bounds.outHeight + "；未保存，请选择其他尺寸");
+            throw new IOException(context.getString(R.string.size_unavailable, resolution.label(context), bounds.outWidth, bounds.outHeight));
         }
         try (RandomAccessFile input = new RandomAccessFile(file, "r")) {
-            if (input.length() < 4) throw new IOException("图片为空");
+            if (input.length() < 4) throw new IOException(context.getString(R.string.image_empty));
             input.seek(input.length() - 2);
-            if (input.readUnsignedShort() != 0xffd9) throw new IOException("JPEG 下载不完整，请重试");
+            if (input.readUnsignedShort() != 0xffd9) throw new IOException(context.getString(R.string.jpeg_incomplete));
         }
         String name = resolution.filename(date, bounds.outWidth, bounds.outHeight);
         if (directoryUri() != null) {
@@ -59,17 +59,17 @@ public final class ImageStore {
         values.put(MediaStore.Images.Media.RELATIVE_PATH, DIRECTORY);
         values.put(MediaStore.Images.Media.IS_PENDING, 1);
         Uri uri = resolver.insert(collection, values);
-        if (uri == null) throw new IOException("无法创建相册图片，请检查存储空间");
+        if (uri == null) throw new IOException(context.getString(R.string.create_failed));
         try {
             try (OutputStream output = resolver.openOutputStream(uri); InputStream input = new FileInputStream(file)) {
-                if (output == null) throw new IOException("无法写入相册图片");
+                if (output == null) throw new IOException(context.getString(R.string.write_failed));
                 byte[] buffer = new byte[32768];
                 int count;
                 while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
             }
             values.clear();
             values.put(MediaStore.Images.Media.IS_PENDING, 0);
-            if (resolver.update(uri, values, null, null) != 1) throw new IOException("无法发布相册图片");
+            if (resolver.update(uri, values, null, null) != 1) throw new IOException(context.getString(R.string.publish_failed));
             SharedPreferences preferences = context.getSharedPreferences("bing", Context.MODE_PRIVATE);
             preferences.edit().putLong("library-revision", preferences.getLong("library-revision", 0) + 1).apply();
             return new Saved(uri, name, false);
@@ -108,7 +108,7 @@ public final class ImageStore {
     public void selectDirectory(Uri uri) {
         if (!"com.android.externalstorage.documents".equals(uri.getAuthority())
                 || !WallpaperFiles.isDownloadDirectory(DocumentsContract.getTreeDocumentId(uri)))
-            throw new IllegalArgumentException("请选择 DCIM/BingWallpapers 文件夹");
+            throw new IllegalArgumentException(context.getString(R.string.wrong_directory));
         context.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
         context.getSharedPreferences("bing", Context.MODE_PRIVATE).edit().putString("directory", uri.toString()).apply();
     }
@@ -116,13 +116,13 @@ public final class ImageStore {
     /** Enumerate direct child documents without consulting the MediaStore index. */
     private List<Saved> listDirectory() {
         Uri tree = directoryUri();
-        if (tree == null) throw new IllegalStateException("目录授权已失效，请重新选择保存目录");
+        if (tree == null) throw new IllegalStateException(context.getString(R.string.directory_revoked));
         Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree));
         List<Saved> saved = new ArrayList<>();
         try (Cursor cursor = context.getContentResolver().query(children, new String[]{
                 DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME,
                 DocumentsContract.Document.COLUMN_MIME_TYPE}, null, null, null)) {
-            if (cursor == null) throw new IllegalStateException("无法读取保存目录，请重新选择目录");
+            if (cursor == null) throw new IllegalStateException(context.getString(R.string.directory_unreadable));
             while (cursor.moveToNext()) {
                 String name = cursor.getString(1);
                 if (!DocumentsContract.Document.MIME_TYPE_DIR.equals(cursor.getString(2)) && WallpaperFiles.matches(name))
@@ -138,18 +138,18 @@ public final class ImageStore {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
         try (InputStream input = context.getContentResolver().openInputStream(uri)) {
-            if (input == null) throw new IOException("无法打开图片");
+            if (input == null) throw new IOException(context.getString(R.string.image_unreadable));
             BitmapFactory.decodeStream(input, null, options);
         }
-        if (options.outWidth <= 0 || options.outHeight <= 0) throw new IOException("图片内容无效");
+        if (options.outWidth <= 0 || options.outHeight <= 0) throw new IOException(context.getString(R.string.image_invalid));
         options.inSampleSize = 1;
         while (options.outWidth / (options.inSampleSize * 2) >= 960 || options.outHeight / (options.inSampleSize * 2) >= 960)
             options.inSampleSize *= 2;
         options.inJustDecodeBounds = false;
         try (InputStream input = context.getContentResolver().openInputStream(uri)) {
-            if (input == null) throw new IOException("无法打开图片");
+            if (input == null) throw new IOException(context.getString(R.string.image_unreadable));
             Bitmap bitmap = BitmapFactory.decodeStream(input, null, options);
-            if (bitmap == null) throw new IOException("无法解码图片");
+            if (bitmap == null) throw new IOException(context.getString(R.string.image_decode_failed));
             return bitmap;
         }
     }

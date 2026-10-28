@@ -21,23 +21,23 @@ public final class CacheChecks {
     public static void runUi(Instrumentation instrumentation) throws InterruptedException {
         Activity activity = instrumentation.startActivitySync(new Intent(instrumentation.getTargetContext(), MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
-        click(instrumentation, activity, "已下载");
+        click(instrumentation, activity, activity.getString(R.string.downloaded));
         awaitLibrary(instrumentation, activity);
         Object directoryPage = field(activity, "libraryPage");
         long scans = (Long) field(activity, "libraryRequest");
         long metadataAttempt = (Long) field(activity, "lastMetadataAttempt");
-        click(instrumentation, activity, "最近八天");
+        click(instrumentation, activity, activity.getString(R.string.recent));
         Object recentPage = field(activity, "recentPage");
         for (int index = 0; index < 8; index++) {
-            click(instrumentation, activity, "已下载");
+            click(instrumentation, activity, activity.getString(R.string.downloaded));
             require(field(activity, "libraryPage") == directoryPage, "Switch rebuilt the library page");
-            click(instrumentation, activity, "最近八天");
+            click(instrumentation, activity, activity.getString(R.string.recent));
             require(field(activity, "recentPage") == recentPage, "Switch rebuilt the recent page");
         }
         require((Long) field(activity, "libraryRequest") == scans, "Switch repeated the directory scan");
         require((Long) field(activity, "lastMetadataAttempt") == metadataAttempt, "Switch repeated the metadata request");
-        click(instrumentation, activity, "已下载");
-        click(instrumentation, activity, "刷新已下载");
+        click(instrumentation, activity, activity.getString(R.string.downloaded));
+        click(instrumentation, activity, activity.getString(R.string.refresh_library));
         awaitLibrary(instrumentation, activity);
         require((Long) field(activity, "libraryRequest") == scans + 1, "Manual refresh did not rescan exactly once");
         require(field(activity, "libraryPage") != directoryPage, "Manual refresh kept the stale page");
