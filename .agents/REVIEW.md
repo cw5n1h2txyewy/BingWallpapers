@@ -65,3 +65,15 @@
 - 未运行项：Android 10–15 实机、系统自动日夜切换的现场触发、通知栏视觉布局和大字体缩放未测；跟随系统的资源配置与服务翻译已通过设备检查。
 - 遗留风险：未发现本轮已验证场景的已知问题；系统文件选择器、权限提示及系统异常文本可能采用设备语言；图片标题和版权保留 Bing 来源文本。
 - 后续事项：无。
+
+## REVIEW-20261028-07：完成通知残留下载动画
+
+- 变更摘要：1.0.6 只在下载队列运行时使用系统下载动画，全部结束后改用静态完成图标；完成通知允许清除、点击自动消失，并显式清除不确定进度，保持排队中的前台通知行为。
+- 根因：1.0.5 的 notification(message, ongoing) 不论 ongoing 值都使用 android.R.drawable.stat_sys_download，该 drawable 本身是动画；设备原完成通知 flags 已为 0 且服务已停止，单纯 setOngoing(false) 不会停止动画资源。
+- 关键文件：DownloadService.java、ic_download_done.xml、NotificationChecks.java、DeviceChecks.java、app/build.gradle、README.md。
+- 本地验证：assembleDebug、assembleDebugAndroidTest、testDebugUnitTest、lintDebug 全部成功；18 项既有 JVM 测试通过；Lint 0 错误、4 警告；git diff --check 通过。
+- 设备验证：S23 Ultra SM-S9180 / Android 16。旧版运行 -e notifications true 明确 FAIL：Finished notification still uses animated stat_sys_download。修复后同一回归 PASS，覆盖真实服务的空批次、错误 JSON 和连续批次结束，检查非 Animatable 图标、无 ongoing/foreground/no-clear 标记、auto-cancel 开启、无不确定进度。
+- 真实下载验证：最终 APK 已覆盖安装；界面执行 1920x1080 实际下载，显示保存 1、已存在 0、失败 0。截图确认状态栏静态对勾；dumpsys activity services 显示无本应用服务；展开后本应用完成文案一致，点击本应用通知回到应用，活动通知记录数为 0。未操作其他应用通知。
+- 未运行项：其他 Android 版本/OEM、长批量网络任务中途的通知检查、超时分支未独立实测；未对无关主题/缓存功能重复全量设备测试。
+- 遗留风险：未发现本次修复的已知遗留问题；完成通知会保留静态提示直到被划掉或点击，这是预期行为。
+- 后续事项：无。

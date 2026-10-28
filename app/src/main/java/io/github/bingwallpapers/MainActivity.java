@@ -357,7 +357,7 @@ public final class MainActivity extends Activity {
                 }
                 case 4 -> showAppearance(true);
                 case 5 -> showAppearance(false);
-                default -> new AlertDialog.Builder(this).setTitle(getString(R.string.about_title, getString(R.string.app_name), "1.0.5"))
+                default -> new AlertDialog.Builder(this).setTitle(getString(R.string.about_title, getString(R.string.app_name), "1.0.6"))
                         .setMessage(R.string.about_body)
                         .setPositiveButton(getString(R.string.ok), null).show();
             }

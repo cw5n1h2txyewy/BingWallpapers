@@ -20,10 +20,15 @@ public final class DownloadService extends Service {
                 new NotificationChannel(CHANNEL, AppSettings.text(this, R.string.download_channel), NotificationManager.IMPORTANCE_LOW));
     }
 
+    /** Animate only active downloads; terminal notifications use a static, dismissible icon. */
     private Notification notification(String message, boolean ongoing) {
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
-        return new Notification.Builder(this, CHANNEL).setSmallIcon(android.R.drawable.stat_sys_download)
-                .setContentTitle(AppSettings.text(this, R.string.app_name)).setContentText(message).setContentIntent(open).setOngoing(ongoing).build();
+        return new Notification.Builder(this, CHANNEL)
+                .setSmallIcon(ongoing ? android.R.drawable.stat_sys_download : R.drawable.ic_download_done)
+                .setContentTitle(AppSettings.text(this, R.string.app_name)).setContentText(message).setContentIntent(open)
+                .setOngoing(ongoing).setAutoCancel(!ongoing).setOnlyAlertOnce(true)
+                .setCategory(ongoing ? Notification.CATEGORY_PROGRESS : Notification.CATEGORY_STATUS)
+                .setProgress(0, 0, false).build();
     }
 
     private void report(String message, boolean complete) {

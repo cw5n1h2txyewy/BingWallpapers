@@ -19,6 +19,11 @@ public final class DeviceChecks extends Instrumentation {
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
+            if (arguments != null && arguments.containsKey("notifications")) {
+                NotificationChecks.run(this);
+                result.putString("stream", "PASS: successful, failed and queued completions use a static, clearable notification without indeterminate progress\n");
+                finish(Activity.RESULT_OK, result); return;
+            }
             if (arguments != null && arguments.containsKey("appearance")) {
                 AppearanceChecks.run(getTargetContext());
                 result.putString("stream", "PASS: Chinese/English/Japanese in light and dark, system locale/theme, service strings, palette, format arguments and independent Bing region\n");
