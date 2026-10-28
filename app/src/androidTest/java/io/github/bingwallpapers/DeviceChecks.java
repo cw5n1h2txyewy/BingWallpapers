@@ -22,15 +22,16 @@ public final class DeviceChecks extends Instrumentation {
             if (arguments != null && arguments.containsKey("gallery")) {
                 boolean expected = arguments.getString("gallery").equals("visible");
                 List<ImageStore.Saved> saved = new ImageStore(getTargetContext()).list();
-                ImageStore.Saved fixture = saved.stream().filter(item -> item.name().equals("codex-legacy-gallery-check.jpg")).findFirst().orElse(null);
+                String expectedName = arguments.getString("filename", "codex-legacy-gallery-check.jpg");
+                ImageStore.Saved fixture = saved.stream().filter(item -> item.name().equals(expectedName)).findFirst().orElse(null);
                 check((fixture != null) == expected, "Legacy photo visibility: expected " + expected + ", actual " + (fixture != null));
                 check(saved.stream().noneMatch(item -> item.name().equals("codex-outside-gallery-check.jpg")), "Photo outside BingWallpapers leaked into gallery");
                 if (fixture != null) {
-                    android.graphics.Bitmap thumbnail = getTargetContext().getContentResolver().loadThumbnail(fixture.uri(), new android.util.Size(200, 200), null);
+                    android.graphics.Bitmap thumbnail = new ImageStore(getTargetContext()).thumbnail(fixture.uri());
                     check(thumbnail != null, "Cannot read legacy thumbnail");
                     thumbnail.recycle();
                 }
-                result.putString("stream", "PASS: legacy gallery " + (expected ? "visible with readable thumbnail" : "hidden without permission") + "; outside directory excluded\n");
+                result.putString("stream", "PASS: legacy gallery " + (expected ? "visible with readable thumbnail" : "not visible") + "; unrelated filename excluded; matching photos=" + saved.size() + "\n");
                 finish(Activity.RESULT_OK, result);
                 return;
             }
@@ -45,15 +46,22 @@ public final class DeviceChecks extends Instrumentation {
             ImageStore store = new ImageStore(getTargetContext());
             for (Resolution size : Resolution.values()) {
                 ImageStore.Saved saved = store.save(first, size);
-                try (Cursor row = getTargetContext().getContentResolver().query(saved.uri(),
+                if (android.provider.DocumentsContract.isDocumentUri(getTargetContext(), saved.uri())) {
+                    try (InputStream input = getTargetContext().getContentResolver().openInputStream(saved.uri())) {
+                        check(input != null && input.read() != -1, "Directory photo is empty");
+                    }
+                    check(WallpaperFiles.matches(saved.name()), "Unexpected directory photo name");
+                } else try (Cursor row = getTargetContext().getContentResolver().query(saved.uri(),
                         new String[]{"relative_path", "is_pending", "_size", "_display_name"}, null, null, null)) {
                     check(row != null && row.moveToFirst(), "Saved photo missing");
                     check(ImageStore.DIRECTORY.equals(row.getString(0)), "Wrong directory");
                     check(row.getInt(1) == 0 && row.getLong(2) > 0, "Photo not published");
                     check(saved.name().equals(row.getString(3)), "Filename changed");
                 }
+                int beforeRepeat = store.list().size();
                 ImageStore.Saved repeated = store.save(first, size);
-                check(repeated.existing() && repeated.uri().equals(saved.uri()), "Repeat created a duplicate");
+                check(repeated.existing() && repeated.name().equals(saved.name()) && store.list().size() == beforeRepeat,
+                        "Repeat created a duplicate");
                 Bundle progress = new Bundle(); progress.putString("stream", "PASS " + size.name() + " " + saved.name() + "\n"); sendStatus(0, progress);
             }
             int before = store.list().size();

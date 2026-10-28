@@ -3,8 +3,10 @@ package io.github.bingwallpapers;
 import android.content.*;
 import android.database.Cursor;
 import android.graphics.BitmapFactory;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.provider.MediaStore;
+import android.provider.DocumentsContract;
 import java.io.*;
 import java.util.*;
 
@@ -40,6 +42,9 @@ public final class ImageStore {
             if (input.readUnsignedShort() != 0xffd9) throw new IOException("JPEG 下载不完整，请重试");
         }
         String name = resolution.filename(date, bounds.outWidth, bounds.outHeight);
+        if (directoryUri() != null) {
+            for (Saved saved : listDirectory()) if (saved.name().equalsIgnoreCase(name)) return saved;
+        }
         ContentResolver resolver = context.getContentResolver();
         Uri collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
         try (Cursor cursor = resolver.query(collection, new String[]{MediaStore.Images.Media._ID},
@@ -73,15 +78,77 @@ public final class ImageStore {
     }
 
     public List<Saved> list() {
+        if (directoryUri() != null) return listDirectory();
         List<Saved> saved = new ArrayList<>();
         Uri collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
         try (Cursor cursor = context.getContentResolver().query(collection,
                 new String[]{"_id", "_display_name"}, "relative_path=? AND is_pending=0",
                 new String[]{DIRECTORY}, "_display_name DESC")) {
             if (cursor != null) while (cursor.moveToNext()) {
-                saved.add(new Saved(ContentUris.withAppendedId(collection, cursor.getLong(0)), cursor.getString(1), true));
+                if (WallpaperFiles.matches(cursor.getString(1)))
+                    saved.add(new Saved(ContentUris.withAppendedId(collection, cursor.getLong(0)), cursor.getString(1), true));
             }
         }
         return saved;
+    }
+
+    /** Return the explicitly chosen directory only while its persistent read grant exists. */
+    public Uri directoryUri() {
+        String raw = context.getSharedPreferences("bing", Context.MODE_PRIVATE).getString("directory", null);
+        if (raw == null) return null;
+        Uri uri = Uri.parse(raw);
+        for (UriPermission permission : context.getContentResolver().getPersistedUriPermissions())
+            if (permission.getUri().equals(uri) && permission.isReadPermission()) return uri;
+        return null;
+    }
+
+    /** Persist a read-only grant for the exact wallpaper directory selected by the user. */
+    public void selectDirectory(Uri uri) {
+        if (!"com.android.externalstorage.documents".equals(uri.getAuthority())
+                || !WallpaperFiles.isDownloadDirectory(DocumentsContract.getTreeDocumentId(uri)))
+            throw new IllegalArgumentException("请选择 DCIM/BingWallpapers 文件夹");
+        context.getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        context.getSharedPreferences("bing", Context.MODE_PRIVATE).edit().putString("directory", uri.toString()).apply();
+    }
+
+    /** Enumerate direct child documents without consulting the MediaStore index. */
+    private List<Saved> listDirectory() {
+        Uri tree = directoryUri();
+        if (tree == null) throw new IllegalStateException("目录授权已失效，请重新选择保存目录");
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree));
+        List<Saved> saved = new ArrayList<>();
+        try (Cursor cursor = context.getContentResolver().query(children, new String[]{
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_MIME_TYPE}, null, null, null)) {
+            if (cursor == null) throw new IllegalStateException("无法读取保存目录，请重新选择目录");
+            while (cursor.moveToNext()) {
+                String name = cursor.getString(1);
+                if (!DocumentsContract.Document.MIME_TYPE_DIR.equals(cursor.getString(2)) && WallpaperFiles.matches(name))
+                    saved.add(new Saved(DocumentsContract.buildDocumentUriUsingTree(tree, cursor.getString(0)), name, true));
+            }
+        }
+        saved.sort(Comparator.comparing(Saved::name, String.CASE_INSENSITIVE_ORDER).reversed());
+        return saved;
+    }
+
+    /** Decode a bounded preview directly from a document or media URI. */
+    public Bitmap thumbnail(Uri uri) throws IOException {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        try (InputStream input = context.getContentResolver().openInputStream(uri)) {
+            if (input == null) throw new IOException("无法打开图片");
+            BitmapFactory.decodeStream(input, null, options);
+        }
+        if (options.outWidth <= 0 || options.outHeight <= 0) throw new IOException("图片内容无效");
+        options.inSampleSize = 1;
+        while (options.outWidth / (options.inSampleSize * 2) >= 960 || options.outHeight / (options.inSampleSize * 2) >= 960)
+            options.inSampleSize *= 2;
+        options.inJustDecodeBounds = false;
+        try (InputStream input = context.getContentResolver().openInputStream(uri)) {
+            if (input == null) throw new IOException("无法打开图片");
+            Bitmap bitmap = BitmapFactory.decodeStream(input, null, options);
+            if (bitmap == null) throw new IOException("无法解码图片");
+            return bitmap;
+        }
     }
 }

@@ -138,7 +138,7 @@ public final class MainActivity extends Activity {
         network.execute(() -> {
             try {
                 Bitmap bitmap;
-                if (uri != null) bitmap = getContentResolver().loadThumbnail(uri, new android.util.Size(960, 540), null);
+                if (uri != null) bitmap = new ImageStore(this).thumbnail(uri);
                 else {
                     ByteArrayOutputStream data = new ByteArrayOutputStream(); BingClient.fetch(url, data, 8 * 1024 * 1024);
                     byte[] raw = data.toByteArray();
@@ -194,27 +194,31 @@ public final class MainActivity extends Activity {
                     if (isDestroyed() || token != generation) return;
                     content.removeAllViews();
                     libraryAccessNotice();
-                    if (saved.isEmpty()) content.addView(text(GalleryAccess.isFull(this)
-                            ? "保存目录中暂无已被系统相册收录的图片。"
-                            : "暂无可访问的图片。旧软件的图片需要照片读取授权。", 16, INK));
+                    content.addView(text("找到 " + saved.size() + " 张日期命名的图片", 14, GREEN));
+                    if (saved.isEmpty()) content.addView(text("暂无匹配图片。请选择保存目录，支持 YYYYMMDD.jpg 和 YYYYMMDD-宽x高.jpg。", 16, INK));
                     showLibrary(saved);
                 });
-            } catch (RuntimeException error) { runOnUiThread(() -> { if (!isDestroyed()) status.setText("读取相册失败：" + error.getMessage()); }); }
+            } catch (RuntimeException error) { runOnUiThread(() -> {
+                if (!isDestroyed() && token == generation) {
+                    content.removeAllViews(); libraryAccessNotice();
+                    content.addView(text("读取目录失败：" + error.getMessage(), 15, INK));
+                }
+            }); }
         });
     }
 
-    /** Explain full, partial and denied media access without blocking new downloads. */
+    /** Request a directory grant independent of media indexing and photo permissions. */
     private void libraryAccessNotice() {
-        if (GalleryAccess.isFull(this)) {
-            content.addView(text("DCIM/BingWallpapers · 包含旧软件保存的图片", 13, GREEN));
-        } else {
-            content.addView(text(GalleryAccess.isPartial(this)
-                    ? "当前只允许部分照片。要显示保存目录中的全部旧图片，请允许访问所有照片。"
-                    : "显示旧软件保存在 DCIM/BingWallpapers 的图片需要照片读取权限。应用只列出此目录；下载新图片不需要此权限。", 14, INK));
-            content.addView(button(GalleryAccess.isPartial(this) ? "管理照片访问权限" : "授权读取旧图片", () -> requestPermissions(GalleryAccess.permissions(), 2)));
-            content.addView(button("打开应用权限设置", () -> startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.parse("package:" + getPackageName())))));
-        }
+        boolean selectedDirectory = new ImageStore(this).directoryUri() != null;
+        content.addView(text(selectedDirectory ? "DCIM/BingWallpapers · 直接读取目录"
+                : "请选择一次 DCIM/BingWallpapers 目录，以读取未被系统相册收录的旧图片。", 14, INK));
+        content.addView(button(selectedDirectory ? "重新选择保存目录" : "选择保存目录", () -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                    .putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADCIM%2FBingWallpapers"));
+            try { startActivityForResult(intent, 3); }
+            catch (ActivityNotFoundException error) { status.setText("未找到系统文件选择器"); }
+        }));
     }
 
     /** Bind only visible rows, keeping large legacy collections out of bitmap memory. */
@@ -249,9 +253,14 @@ public final class MainActivity extends Activity {
         root.addView(list, position, new LinearLayout.LayoutParams(-1, 0, 1));
     }
 
-    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 2 && gallery && selected == null) { cache.evictAll(); render(); }
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 3 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            try {
+                new ImageStore(this).selectDirectory(data.getData());
+                cache.evictAll(); gallery = true; selected = null; render();
+            } catch (IllegalArgumentException | SecurityException error) { status.setText("目录授权失败：" + error.getMessage()); }
+        }
     }
 
     private void menu() {
@@ -267,8 +276,8 @@ public final class MainActivity extends Activity {
                     if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
                     else status.setText("当前系统无需额外通知权限");
                 }
-                default -> new AlertDialog.Builder(this).setTitle("必应美图 1.0.1")
-                        .setMessage("独立开发的 Bing 图片浏览与下载工具，非微软官方应用。\n\n保存位置：DCIM/BingWallpapers\n下载无需存储权限；读取旧软件的图片需要照片权限。\n\n图片版权归原作者及权利人所有，请遵守 Bing 使用条款。近期列表由 Bing 接口提供，通常为八天。\n\n在已下载页授权访问所有照片后，可显示保存目录中的旧图片。")
+                default -> new AlertDialog.Builder(this).setTitle("必应美图 1.0.2")
+                        .setMessage("独立开发的 Bing 图片浏览与下载工具，非微软官方应用。\n\n保存位置：DCIM/BingWallpapers\n在已下载页选择该目录一次，即可按文件名直接读取旧图片，无需系统相册索引。\n\n图片版权归原作者及权利人所有，请遵守 Bing 使用条款。近期列表由 Bing 接口提供，通常为八天。")
                         .setPositiveButton("知道了", null).show();
             }
         }).show();
