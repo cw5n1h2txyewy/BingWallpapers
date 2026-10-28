@@ -27,7 +27,8 @@ public final class DownloadService extends Service {
     private void report(String message) {
         getSharedPreferences("bing", MODE_PRIVATE).edit().putString("status", message).apply();
         sendBroadcast(new Intent(ACTION).setPackage(getPackageName()).putExtra("message", message));
-        getSystemService(NotificationManager.class).notify(1, notification(message, true));
+        if (Build.VERSION.SDK_INT < 33 || checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED)
+            getSystemService(NotificationManager.class).notify(1, notification(message, true));
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
@@ -57,7 +58,8 @@ public final class DownloadService extends Service {
             // A newer queued start must keep the service and its foreground notification alive.
             if (stopSelfResult(startId)) {
                 stopForeground(STOP_FOREGROUND_DETACH);
-                getSystemService(NotificationManager.class).notify(1, notification(result, false));
+                if (Build.VERSION.SDK_INT < 33 || checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED)
+                    getSystemService(NotificationManager.class).notify(1, notification(result, false));
             }
         });
         return START_NOT_STICKY;

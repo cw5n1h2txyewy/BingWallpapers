@@ -34,7 +34,7 @@ public final class BingClient {
     public static String metadata(String market) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         fetch("https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=" + market, output, 1024 * 1024);
-        return output.toString(StandardCharsets.UTF_8);
+        return new String(output.toByteArray(), StandardCharsets.UTF_8);
     }
 
     public static List<Wallpaper> parse(String raw) throws JSONException {

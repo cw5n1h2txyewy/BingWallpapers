@@ -35,6 +35,8 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::navigateBack);
         market = getPreferences(MODE_PRIVATE).getString("market", "zh-CN");
         if (state != null) {
             gallery = state.getBoolean("gallery");
@@ -50,8 +52,9 @@ public final class MainActivity extends Activity {
 
     @Override protected void onStart() {
         super.onStart();
-        if (Build.VERSION.SDK_INT >= 33) registerReceiver(updates, new IntentFilter(DownloadService.ACTION), Context.RECEIVER_NOT_EXPORTED);
-        else registerReceiver(updates, new IntentFilter(DownloadService.ACTION));
+        // Signature permission protects older releases; API 33+ also marks it unexported.
+        registerReceiver(updates, new IntentFilter(DownloadService.ACTION), "io.github.bingwallpapers.INTERNAL", null,
+                Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
         status.setText(getSharedPreferences("bing", MODE_PRIVATE).getString("status", "图片保存至 DCIM/BingWallpapers"));
     }
     @Override protected void onStop() { unregisterReceiver(updates); super.onStop(); }
@@ -66,19 +69,31 @@ public final class MainActivity extends Activity {
     }
 
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+    private void navigateBack() {
+        if (selected != null) { selected = null; render(); }
+        else if (gallery) { gallery = false; render(); }
+        else finish();
+    }
+    // API 29–32 fallback only; API 33+ uses the platform dispatcher registered in onCreate.
+    @android.annotation.SuppressLint("GestureBackNavigation")
+    @Override public void onBackPressed() { navigateBack(); }
     private TextView text(String value, int sp, int color) {
         TextView view = new TextView(this); view.setText(value); view.setTextSize(sp); view.setTextColor(color);
         view.setPadding(dp(16), dp(8), dp(16), dp(8)); return view;
     }
     private Button button(String label, Runnable action) {
         Button button = new Button(this); button.setText(label); button.setTextColor(GREEN); button.setAllCaps(false);
+        button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(225, 236, 226)));
+        button.setElevation(0);
         button.setOnClickListener(view -> action.run()); return button;
     }
     private void render() {
         generation++;
         root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(Color.rgb(245, 247, 243));
         root.setOnApplyWindowInsetsListener((view, insets) -> {
-            android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            android.graphics.Insets bars = Build.VERSION.SDK_INT >= 30
+                    ? insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout())
+                    : insets.getSystemWindowInsets();
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom); return insets;
         });
         setContentView(root);
@@ -88,7 +103,7 @@ public final class MainActivity extends Activity {
         brand.setTypeface(null, Typeface.BOLD);
         header.addView(brand, new LinearLayout.LayoutParams(0, dp(64), 1));
         if (selected != null) brand.setOnClickListener(view -> { selected = null; render(); });
-        header.addView(button("⋮", this::menu)); root.addView(header);
+        header.addView(button("⋮", this::menu), new LinearLayout.LayoutParams(dp(52), dp(48))); root.addView(header);
         if (selected == null) {
             LinearLayout tabs = new LinearLayout(this);
             tabs.addView(button("最近八天", () -> { gallery = false; render(); }), new LinearLayout.LayoutParams(0, dp(52), 1));
@@ -121,7 +136,10 @@ public final class MainActivity extends Activity {
                 if (uri != null) bitmap = getContentResolver().loadThumbnail(uri, new android.util.Size(960, 540), null);
                 else {
                     ByteArrayOutputStream data = new ByteArrayOutputStream(); BingClient.fetch(url, data, 8 * 1024 * 1024);
-                    byte[] raw = data.toByteArray(); bitmap = BitmapFactory.decodeByteArray(raw, 0, raw.length);
+                    byte[] raw = data.toByteArray();
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = crop ? 2 : 1;
+                    bitmap = BitmapFactory.decodeByteArray(raw, 0, raw.length, options);
                 }
                 if (bitmap == null) throw new IOException("无法解码图片");
                 cache.put(key, bitmap);
@@ -138,7 +156,7 @@ public final class MainActivity extends Activity {
         for (Wallpaper image : images) {
             LinearLayout card = new LinearLayout(this); card.setOrientation(LinearLayout.VERTICAL);
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2); params.bottomMargin = dp(16); card.setLayoutParams(params);
-            card.addView(photo(image.base, image.url("960x540"), null, 210, true));
+            card.addView(photo(image.base, image.url("1920x1080"), null, 210, true));
             card.addView(text(image.date + "   ·   " + image.title, 17, INK));
             card.addView(text(image.copyright, 12, Color.DKGRAY));
             card.setOnClickListener(view -> { selected = image; render(); }); content.addView(card);
@@ -184,7 +202,7 @@ public final class MainActivity extends Activity {
     }
 
     private void menu() {
-        new AlertDialog.Builder(this).setTitle("必应美图").setItems(new String[]{"刷新", "下载全部最近图片", "切换地区", "关于"}, (dialog, which) -> {
+        new AlertDialog.Builder(this).setTitle("必应美图").setItems(new String[]{"刷新", "下载全部最近图片", "切换地区", "允许下载通知", "关于"}, (dialog, which) -> {
             switch (which) {
                 case 0 -> { selected = null; load(); }
                 case 1 -> { if (images.isEmpty()) status.setText("请先加载图片"); else choose(new ArrayList<>(images)); }
@@ -192,6 +210,10 @@ public final class MainActivity extends Activity {
                     market = new String[]{"zh-CN", "en-US", "ja-JP"}[index];
                     getPreferences(MODE_PRIVATE).edit().putString("market", market).apply(); images.clear(); selected = null; gallery = false; load();
                 }).show();
+                case 3 -> {
+                    if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+                    else status.setText("当前系统无需额外通知权限");
+                }
                 default -> new AlertDialog.Builder(this).setTitle("必应美图 1.0")
                         .setMessage("独立开发的 Bing 图片浏览与下载工具，非微软官方应用。\n\n保存位置：DCIM/BingWallpapers\n无需相册或所有文件权限。\n\n图片版权归原作者及权利人所有，请遵守 Bing 使用条款。近期列表由 Bing 接口提供，通常为八天。\n\n已下载仅列出本应用可访问的图片，旧应用图片仍可在系统相册查看。")
                         .setPositiveButton("知道了", null).show();

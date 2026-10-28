@@ -26,7 +26,8 @@ public final class ImageStore {
         } finally { if (!temporary.delete()) temporary.deleteOnExit(); }
     }
 
-    Saved publish(File file, String date, Resolution resolution) throws IOException {
+    /** Validate and publish a completed JPEG, without modifying an existing photo. */
+    public Saved publish(File file, String date, Resolution resolution) throws IOException {
         BitmapFactory.Options bounds = new BitmapFactory.Options();
         bounds.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
@@ -57,7 +58,9 @@ public final class ImageStore {
         try {
             try (OutputStream output = resolver.openOutputStream(uri); InputStream input = new FileInputStream(file)) {
                 if (output == null) throw new IOException("无法写入相册图片");
-                input.transferTo(output);
+                byte[] buffer = new byte[32768];
+                int count;
+                while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
             }
             values.clear();
             values.put(MediaStore.Images.Media.IS_PENDING, 0);
