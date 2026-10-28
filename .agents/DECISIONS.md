@@ -52,6 +52,6 @@
 - 决策：默认主题跟随系统，支持显式浅色/深色；语言默认保留中文，提供中文、英文、日文及跟随系统。使用配置 Context 和 Android night/locale 资源，选项保存到 appearance 偏好并重建当前 Activity。界面语言独立于 Bing 地区；标题和版权保留来源原文。
 - 原因：兼容最低 API 29，不引入额外 UI 框架；主题切换只改变资源，不改变原图和文件命名；保留全部语言资源可离线切换。
 - 影响：AppSettings、MainActivity、Resolution、BingClient、ImageStore、DownloadService；下载服务字符串按最新语言解析；旧语言历史状态不混入新语言页面；AAB 禁止按语言拆分。
-- 适用范围：API 29+；1.0.5；设备运行验证尚待连接手机。
-- 验证：构建及 18 项既有 JVM 测试通过；Lint 0 错误、4 警告；三套各 80 条字符串键和格式参数一致；APK 包含 ja、zh、night 配置。新增 AppearanceChecks 已编译，尚未在设备执行。
+- 适用范围：API 29+；1.0.5；S23 Ultra SM-S9180 / Android 16 已验证。
+- 验证：构建及 18 项既有 JVM 测试通过；Lint 0 错误、4 警告；三套各 80 条字符串键和格式参数一致；APK 包含 ja、zh、night 配置。AppearanceChecks 六种组合及跟随系统检查 PASS；实际菜单、截图、设置持久性、日语下载状态、缓存和旧文件读取均已在 S23 Ultra 验证。
 - 替代方案：仅改变背景无法覆盖原生弹窗和文字对比；将界面语言绑定 Bing 地区会意外改变图片来源。

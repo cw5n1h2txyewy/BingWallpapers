@@ -60,7 +60,8 @@
 - 变更摘要：1.0.5 新增跟随系统/浅色/深色、简体中文/英文/日文/跟随系统选项并持久保存；页面、文字、按钮、占位图及原生弹窗按 night 资源切换；80 条界面和常见错误文案迁移为三套资源；下载尺寸、通知及进度本地化，Bing 元数据不自动翻译。
 - 关键文件：AppSettings.java、MainActivity.java、Resolution.java、DownloadService.java、ImageStore.java、BingClient.java、res/values*、AppearanceChecks.java、README.md。
 - 本地验证：assembleDebug、assembleDebugAndroidTest、testDebugUnitTest、lintDebug 全部成功；18 项既有 JVM 测试通过；Lint 0 错误、4 警告（工具链升级建议和备份配置）；三套各 80 条资源的键及格式参数核对通过；aapt2 确认 APK 包含 ja、zh、night 资源；git diff --check 通过。
-- 设备验证：未执行。本轮 adb devices 没有设备，安装命令明确返回 no devices/emulators found，本机也没有可用 AVD。没有将上一轮 S23 Ultra 测试或新增测试编译成功当成本轮真机通过。
-- 未运行项：AppearanceChecks 的六种语言/主题组合、实际设置菜单切换、深色截图、重开后的选项保持，以及语言变更后的下载/通知/缓存回归均待设备连接。
-- 遗留风险：资源已完成静态与编译检查，但 native Activity 配置重建、OEM 弹窗布局和系统栏配色仍需真机核对；系统文件选择器、权限提示及系统异常文本可能采用设备语言；图片标题和版权是 Bing 来源文本。
-- 后续事项：连接 S23 Ultra，安装 APK 并执行 -e appearance true、-e cache_ui true 以及实际主题/语言切换检查，按结果修复后更新本条。
+- 设备验证：初次因未连接设备未执行；用户接回后在 S23 Ultra SM-S9180 / Android 16 覆盖安装 1.0.5。AppearanceChecks 的中英日 × 浅深色六种组合、系统语言/主题、服务文案、配色、格式参数及 Bing 地区独立性检查全部 PASS。实际菜单切换深色中文、深色英文、深色日语和浅色日语并查看截图，页面/弹窗/系统栏对比正常；英文与深色设置在强制停止重开后保留。日语实际下载显示“完了：保存 0、既存 1、失敗 0”。
+- 其他回归：八轮真实标签切换复用页面且没有额外目录扫描/元数据请求，手动刷新恰好枚举一次，PASS。四种分辨率下载、重复保存、无效 JPEG 等完整集成检查 PASS；原有 20180210.jpg 可见且缩略图可读，匹配目录文件 3005 张。测试后核对偏好已恢复 language=zh、theme=system，保留图片、目录授权与缓存。
+- 未运行项：Android 10–15 实机、系统自动日夜切换的现场触发、通知栏视觉布局和大字体缩放未测；跟随系统的资源配置与服务翻译已通过设备检查。
+- 遗留风险：未发现本轮已验证场景的已知问题；系统文件选择器、权限提示及系统异常文本可能采用设备语言；图片标题和版权保留 Bing 来源文本。
+- 后续事项：无。
