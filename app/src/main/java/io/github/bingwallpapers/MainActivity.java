@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import org.json.*;
 
-/** Recent Bing photographs, detail viewer and the app-owned photo library. */
+/** Recent Bing photographs, detail viewer and the download-directory photo library. */
 public final class MainActivity extends Activity {
     private static final int GREEN = Color.rgb(39, 99, 75), INK = Color.rgb(29, 48, 39);
     private final ExecutorService network = Executors.newFixedThreadPool(3);
@@ -58,6 +58,11 @@ public final class MainActivity extends Activity {
         status.setText(getSharedPreferences("bing", MODE_PRIVATE).getString("status", "图片保存至 DCIM/BingWallpapers"));
     }
     @Override protected void onStop() { unregisterReceiver(updates); super.onStop(); }
+    @Override protected void onResume() {
+        super.onResume();
+        // Photo grants may change in Settings or after returning from the selection dialog.
+        if (gallery && selected == null) { cache.evictAll(); render(); }
+    }
     @Override protected void onDestroy() { network.shutdownNow(); cache.evictAll(); super.onDestroy(); }
     @Override protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
@@ -180,6 +185,7 @@ public final class MainActivity extends Activity {
 
     private void library() {
         int token = generation;
+        libraryAccessNotice();
         content.addView(text("正在读取已下载图片…", 15, INK));
         network.execute(() -> {
             try {
@@ -187,18 +193,65 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     if (isDestroyed() || token != generation) return;
                     content.removeAllViews();
-                    if (saved.isEmpty()) content.addView(text("还没有下载图片\n下载后，它们会出现在这里和系统相册。", 16, INK));
-                    for (ImageStore.Saved item : saved) {
-                        ImageView photo = photo(item.uri().toString(), null, item.uri(), 190, true);
-                        photo.setOnClickListener(view -> {
-                            try { startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(item.uri(), "image/jpeg").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)); }
-                            catch (ActivityNotFoundException error) { status.setText("未找到图片查看器"); }
-                        });
-                        content.addView(photo); content.addView(text(item.name(), 14, INK));
-                    }
+                    libraryAccessNotice();
+                    if (saved.isEmpty()) content.addView(text(GalleryAccess.isFull(this)
+                            ? "保存目录中暂无已被系统相册收录的图片。"
+                            : "暂无可访问的图片。旧软件的图片需要照片读取授权。", 16, INK));
+                    showLibrary(saved);
                 });
             } catch (RuntimeException error) { runOnUiThread(() -> { if (!isDestroyed()) status.setText("读取相册失败：" + error.getMessage()); }); }
         });
+    }
+
+    /** Explain full, partial and denied media access without blocking new downloads. */
+    private void libraryAccessNotice() {
+        if (GalleryAccess.isFull(this)) {
+            content.addView(text("DCIM/BingWallpapers · 包含旧软件保存的图片", 13, GREEN));
+        } else {
+            content.addView(text(GalleryAccess.isPartial(this)
+                    ? "当前只允许部分照片。要显示保存目录中的全部旧图片，请允许访问所有照片。"
+                    : "显示旧软件保存在 DCIM/BingWallpapers 的图片需要照片读取权限。应用只列出此目录；下载新图片不需要此权限。", 14, INK));
+            content.addView(button(GalleryAccess.isPartial(this) ? "管理照片访问权限" : "授权读取旧图片", () -> requestPermissions(GalleryAccess.permissions(), 2)));
+            content.addView(button("打开应用权限设置", () -> startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())))));
+        }
+    }
+
+    /** Bind only visible rows, keeping large legacy collections out of bitmap memory. */
+    private void showLibrary(List<ImageStore.Saved> saved) {
+        ScrollView oldScroll = (ScrollView) content.getParent();
+        int position = root.indexOfChild(oldScroll);
+        oldScroll.removeView(content);
+        root.removeView(oldScroll);
+        ListView list = new ListView(this);
+        list.setDividerHeight(dp(12));
+        list.addHeaderView(content, null, false);
+        list.setAdapter(new BaseAdapter() {
+            @Override public int getCount() { return saved.size(); }
+            @Override public ImageStore.Saved getItem(int index) { return saved.get(index); }
+            @Override public long getItemId(int index) { return index; }
+            @Override public View getView(int index, View recycled, ViewGroup parent) {
+                ImageStore.Saved item = getItem(index);
+                LinearLayout card = new LinearLayout(MainActivity.this);
+                card.setOrientation(LinearLayout.VERTICAL);
+                card.setPadding(dp(12), 0, dp(12), 0);
+                card.addView(photo(item.uri().toString(), null, item.uri(), 190, true));
+                card.addView(text(item.name(), 14, INK));
+                return card;
+            }
+        });
+        list.setOnItemClickListener((parent, view, index, id) -> {
+            if (index < list.getHeaderViewsCount()) return;
+            ImageStore.Saved item = saved.get(index - list.getHeaderViewsCount());
+            try { startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(item.uri(), "image/*").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)); }
+            catch (ActivityNotFoundException | SecurityException error) { status.setText("无法打开图片，请检查照片访问权限"); }
+        });
+        root.addView(list, position, new LinearLayout.LayoutParams(-1, 0, 1));
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 2 && gallery && selected == null) { cache.evictAll(); render(); }
     }
 
     private void menu() {
@@ -214,8 +267,8 @@ public final class MainActivity extends Activity {
                     if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
                     else status.setText("当前系统无需额外通知权限");
                 }
-                default -> new AlertDialog.Builder(this).setTitle("必应美图 1.0")
-                        .setMessage("独立开发的 Bing 图片浏览与下载工具，非微软官方应用。\n\n保存位置：DCIM/BingWallpapers\n无需相册或所有文件权限。\n\n图片版权归原作者及权利人所有，请遵守 Bing 使用条款。近期列表由 Bing 接口提供，通常为八天。\n\n已下载仅列出本应用可访问的图片，旧应用图片仍可在系统相册查看。")
+                default -> new AlertDialog.Builder(this).setTitle("必应美图 1.0.1")
+                        .setMessage("独立开发的 Bing 图片浏览与下载工具，非微软官方应用。\n\n保存位置：DCIM/BingWallpapers\n下载无需存储权限；读取旧软件的图片需要照片权限。\n\n图片版权归原作者及权利人所有，请遵守 Bing 使用条款。近期列表由 Bing 接口提供，通常为八天。\n\n在已下载页授权访问所有照片后，可显示保存目录中的旧图片。")
                         .setPositiveButton("知道了", null).show();
             }
         }).show();

@@ -11,13 +11,29 @@ import org.json.*;
 
 /** Real Bing/MediaStore integration checks; keeps the requested photos for inspection. */
 public final class DeviceChecks extends Instrumentation {
-    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); start(); }
+    private Bundle arguments;
+    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); this.arguments = arguments; start(); }
     private void check(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
     }
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
+            if (arguments != null && arguments.containsKey("gallery")) {
+                boolean expected = arguments.getString("gallery").equals("visible");
+                List<ImageStore.Saved> saved = new ImageStore(getTargetContext()).list();
+                ImageStore.Saved fixture = saved.stream().filter(item -> item.name().equals("codex-legacy-gallery-check.jpg")).findFirst().orElse(null);
+                check((fixture != null) == expected, "Legacy photo visibility: expected " + expected + ", actual " + (fixture != null));
+                check(saved.stream().noneMatch(item -> item.name().equals("codex-outside-gallery-check.jpg")), "Photo outside BingWallpapers leaked into gallery");
+                if (fixture != null) {
+                    android.graphics.Bitmap thumbnail = getTargetContext().getContentResolver().loadThumbnail(fixture.uri(), new android.util.Size(200, 200), null);
+                    check(thumbnail != null, "Cannot read legacy thumbnail");
+                    thumbnail.recycle();
+                }
+                result.putString("stream", "PASS: legacy gallery " + (expected ? "visible with readable thumbnail" : "hidden without permission") + "; outside directory excluded\n");
+                finish(Activity.RESULT_OK, result);
+                return;
+            }
             List<Wallpaper> images = BingClient.parse(BingClient.metadata("zh-CN"));
             check(images.size() > 0, "No Bing images");
             Wallpaper first = images.get(0);
