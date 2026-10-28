@@ -1,6 +1,6 @@
 # 必应美图
 
-轻量的 Android Bing 图片浏览和下载应用，独立实现，参考 `screenshots/` 中旧应用的交互。不是微软官方应用，也不包含 Vove7 原项目的源码（提供的 GitHub 链接目前为 404）。
+轻量的 Android Bing 图片浏览和下载应用，独立实现，参考 `screenshots/reference/` 中旧应用的交互。不是微软官方应用，也不包含 Vove7 原项目的源码（提供的 GitHub 链接目前为 404）。
 
 ## 功能
 
@@ -14,6 +14,16 @@
 - 通过 MediaStore 保存新图片；读取旧图片只需选择并授权这个目录，不申请全相册或所有文件权限。
 
 支持 Android 10 及以上，目标 Android 16（API 36）。独立包名 `io.github.cw5n1h2txyewy.bingwallpapers`，可以与旧软件共存。
+
+## 界面预览
+
+当前应用的深色模式截图，分别展示最近图片浏览和保存目录中的图片列表。
+
+| 最近八天 | 已下载 |
+| --- | --- |
+| <img src="screenshots/主页1.jpg" alt="必应美图深色模式：最近八天图片列表" width="320"> | <img src="screenshots/主页2.jpg" alt="必应美图深色模式：已下载图片与保存目录" width="320"> |
+
+`screenshots/` 根目录存放当前应用截图；旧软件的交互参考截图位于 [`screenshots/reference/`](screenshots/reference/)，原图保留。
 
 ## Kotlin 迁移（1.0.8）
 
@@ -131,4 +141,4 @@ adb shell am start -n io.github.cw5n1h2txyewy.bingwallpapers/.MainActivity
 - 已下载页读取用户明确授权的保存目录，依据 [Android 目录授权文档](https://developer.android.com/training/data-storage/shared/documents-files#grant-access-directory)。卸载重装或手动撤销目录授权后，需要重新选择目录；目录内文件需要符合上述命名规则。
 - 不包含自动换壁纸、桌面组件、无限历史图库和自动每日下载。图片版权归原作者及权利人，请遵守 Bing 使用条款及授权限制。
 
-代码与验证记录见 `.agents/`；用户参考截图保持原样。
+代码与验证记录见 `.agents/`。

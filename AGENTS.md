@@ -4,19 +4,20 @@
 
 ## 项目目的
 
-独立实现 Android Bing 图片浏览及下载工具，重点保证 Android 16 下可靠保存。screenshots 是旧软件的交互参考，并非旧源码。图片版权归原权利人。
+独立实现 Android Bing 图片浏览及下载工具，重点保证 Android 16 下可靠保存。旧软件的交互参考见 screenshots/reference/，并非旧源码。图片版权归原权利人。
 
 ## 代码结构
 
 - app/src/main/kotlin/io/github/cw5n1h2txyewy/bingwallpapers/：原生 Kotlin 应用；界面、HTTP、元数据、尺寸、MediaStore 保存和前台队列分开维护。
 - app/src/test/：无需设备的尺寸与命名测试。
 - app/src/androidTest/：真实 Bing 与 MediaStore 集成检查。
-- screenshots/：用户原始参考截图，保留原样。
+- screenshots/：当前应用截图，README 的界面预览使用这些图片。
+- screenshots/reference/：旧软件的原始交互参考截图，保留原样。
 - README.md：构建、安装、使用方法与限制的事实来源。
 
 ## 开发环境与代码规范
 
-使用 Gradle Wrapper、Android SDK、JDK 和 AGP 内置 Kotlin，版本以 Gradle 配置为准；命令见 README。本项目不需要 Python 环境。
+使用 Gradle Wrapper、Android SDK、JDK 和 AGP 内置 Kotlin，版本以 Gradle 配置为准；命令见 README。
 
 - 使用 Kotlin 的只读属性、明确的可空类型和简短 KDoc；保持模块简单，避免无必要依赖及过度抽象。保留 Java 测试的调用兼容性。
 - 网络、图片解码和文件 I/O 在后台线程执行；UI 更新回到主线程。处理 Activity 重建与服务生命周期。
