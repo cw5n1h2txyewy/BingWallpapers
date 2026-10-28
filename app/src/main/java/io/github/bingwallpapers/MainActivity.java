@@ -276,7 +276,7 @@ public final class MainActivity extends Activity {
                     if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
                     else status.setText("当前系统无需额外通知权限");
                 }
-                default -> new AlertDialog.Builder(this).setTitle("必应美图 1.0.2")
+                default -> new AlertDialog.Builder(this).setTitle("必应美图 1.0.3")
                         .setMessage("独立开发的 Bing 图片浏览与下载工具，非微软官方应用。\n\n保存位置：DCIM/BingWallpapers\n在已下载页选择该目录一次，即可按文件名直接读取旧图片，无需系统相册索引。\n\n图片版权归原作者及权利人所有，请遵守 Bing 使用条款。近期列表由 Bing 接口提供，通常为八天。")
                         .setPositiveButton("知道了", null).show();
             }
@@ -290,16 +290,22 @@ public final class MainActivity extends Activity {
     private void choose(List<Wallpaper> list) {
         Resolution[] sizes = Resolution.values(); String[] labels = new String[sizes.length];
         for (int i = 0; i < sizes.length; i++) labels[i] = sizes[i].label;
-        int last = getPreferences(MODE_PRIVATE).getInt("size", 0);
-        new AlertDialog.Builder(this).setTitle(list.size() > 1 ? "下载全部 " + list.size() + " 张 · 选择尺寸" : "选择下载尺寸")
-                .setSingleChoiceItems(labels, last, (dialog, index) -> {
-                    dialog.dismiss(); getPreferences(MODE_PRIVATE).edit().putInt("size", index).apply();
+        AlertDialog picker = new AlertDialog.Builder(this).setTitle(list.size() > 1 ? "下载全部 " + list.size() + " 张 · 选择尺寸" : "选择下载尺寸")
+                .setItems(labels, (dialog, index) -> {
+                    dialog.dismiss();
                     try {
                         String array = new JSONObject(encoded(list)).getJSONArray("images").toString();
                         startForegroundService(new Intent(this, DownloadService.class).putExtra("images", array).putExtra("resolution", sizes[index].name()));
                         status.setText("已加入下载队列 · " + sizes[index].label);
                     } catch (JSONException | RuntimeException error) { status.setText("启动下载失败：" + error.getMessage()); }
-                }).setNegativeButton("取消", null).show();
+                }).setNeutralButton("取消", null).create();
+        picker.show();
+        // Some platform themes center a sole button; keep this cancel action at the left.
+        Button cancel = picker.getButton(AlertDialog.BUTTON_NEUTRAL);
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) cancel.getLayoutParams();
+        params.weight = 0;
+        params.gravity = Gravity.START;
+        cancel.setLayoutParams(params);
     }
     private void load() {
         selected = null; gallery = false; render(); status.setText("正在刷新…");
