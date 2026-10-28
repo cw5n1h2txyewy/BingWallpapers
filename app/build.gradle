@@ -1,0 +1,17 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'io.github.bingwallpapers'
+    compileSdk { version = release(36) { minorApiLevel = 1 } }
+    defaultConfig {
+        applicationId 'io.github.bingwallpapers'
+        minSdk 29
+        targetSdk 36
+        versionCode 1
+        versionName '1.0.0'
+        testInstrumentationRunner 'io.github.bingwallpapers.DeviceChecks'
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    buildTypes { release { minifyEnabled false } }
+}
+dependencies { testImplementation 'junit:junit:4.13.2' }
