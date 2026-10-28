@@ -19,6 +19,16 @@ public final class DeviceChecks extends Instrumentation {
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
+            if (arguments != null && arguments.containsKey("cache")) {
+                CacheChecks.run(getTargetContext());
+                result.putString("stream", "PASS: warm memory reuse, cold disk reuse, corrupt preview recovery, explicit clear and bounded disk size\n");
+                finish(Activity.RESULT_OK, result); return;
+            }
+            if (arguments != null && arguments.containsKey("cache_ui")) {
+                CacheChecks.runUi(this);
+                result.putString("stream", "PASS: eight repeated tab switches reused both pages; no extra directory scan or metadata request; manual refresh rescanned exactly once\n");
+                finish(Activity.RESULT_OK, result); return;
+            }
             if (arguments != null && arguments.containsKey("gallery")) {
                 boolean expected = arguments.getString("gallery").equals("visible");
                 List<ImageStore.Saved> saved = new ImageStore(getTargetContext()).list();

@@ -70,6 +70,8 @@ public final class ImageStore {
             values.clear();
             values.put(MediaStore.Images.Media.IS_PENDING, 0);
             if (resolver.update(uri, values, null, null) != 1) throw new IOException("无法发布相册图片");
+            SharedPreferences preferences = context.getSharedPreferences("bing", Context.MODE_PRIVATE);
+            preferences.edit().putLong("library-revision", preferences.getLong("library-revision", 0) + 1).apply();
             return new Saved(uri, name, false);
         } catch (IOException | RuntimeException error) {
             resolver.delete(uri, null, null);

@@ -44,3 +44,13 @@
 - 未运行项：其他 Android 版本和批量弹窗未独立实测；批量入口共用同一弹窗实现。
 - 遗留风险：未发现此次变更的已知遗留问题。
 - 后续事项：无。
+
+## REVIEW-20261028-05：页面与缩略图缓存优化
+
+- 变更摘要：1.0.4 保留最近八天；当天元数据按地区持久缓存，目录快照五分钟复用，标签保留页面和滚动位置；预览加内存/磁盘缓存与并发合并；下载成功和授权/手动刷新触发失效；不再在每次返回前台清空图片缓存。
+- 关键文件：MainActivity.java、CachePolicy.java、SnapshotCache.java、ThumbnailCache.java、ImageStore.java、DownloadService.java、CachePolicyTest.java、CacheChecks.java、README.md。
+- 本地验证：assembleDebug、assembleDebugAndroidTest、testDebugUnitTest、lintDebug 最终全部成功；18 项 JVM 测试（含日界线、回拨、重试节流、目录修订和过期）通过；Lint 0 错误、8 警告；git diff --check 通过。
+- 设备验证：S23 Ultra SM-S9180 / Android 16，最终 APK 已覆盖安装。内存命中、冷缓存磁盘命中、损坏缓存恢复、显式清理、磁盘上限检查 PASS。真实按钮连续八轮切换复用两个页面，未新增目录扫描或元数据请求，手动刷新恰好枚举一次，PASS。设备原有 20180210.jpg 可见且缩略图可读，匹配目录文件约三千张；四种分辨率真实下载、重复检测、无效 JPEG 等原有集成检查全部 PASS。
+- 未运行项：Android 10–15 实机、真实跨午夜连续运行、移除目录授权的现场操作、并发请求压力测试、精确响应时间基准未执行；日界线与失效策略由确定性测试覆盖，不声称实测速度提升百分比。
+- 遗留风险：外部增删文件可在五分钟内仍显示旧快照，手动刷新立即更新；进程重开后目录首次进入仍扫描一次；磁盘预览可被系统清理，首次未缓存图片仍需读取。
+- 后续事项：无。
