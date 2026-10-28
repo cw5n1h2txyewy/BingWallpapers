@@ -1,4 +1,4 @@
-package io.github.bingwallpapers;
+package io.github.cw5n1h2txyewy.bingwallpapers;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;

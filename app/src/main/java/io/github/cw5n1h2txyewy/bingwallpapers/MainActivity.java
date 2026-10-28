@@ -1,4 +1,4 @@
-package io.github.bingwallpapers;
+package io.github.cw5n1h2txyewy.bingwallpapers;
 
 import android.app.*;
 import android.content.*;
@@ -69,7 +69,7 @@ public final class MainActivity extends Activity {
     @Override protected void onStart() {
         super.onStart();
         // Signature permission protects older releases; API 33+ also marks it unexported.
-        registerReceiver(updates, new IntentFilter(DownloadService.ACTION), "io.github.bingwallpapers.INTERNAL", null,
+        registerReceiver(updates, new IntentFilter(DownloadService.ACTION), getPackageName() + ".INTERNAL", null,
                 Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
         status.setText(AppSettings.lastStatus(this));
     }
@@ -357,7 +357,7 @@ public final class MainActivity extends Activity {
                 }
                 case 4 -> showAppearance(true);
                 case 5 -> showAppearance(false);
-                default -> new AlertDialog.Builder(this).setTitle(getString(R.string.about_title, getString(R.string.app_name), "1.0.6"))
+                default -> new AlertDialog.Builder(this).setTitle(getString(R.string.about_title, getString(R.string.app_name), "1.0.7"))
                         .setMessage(R.string.about_body)
                         .setPositiveButton(getString(R.string.ok), null).show();
             }

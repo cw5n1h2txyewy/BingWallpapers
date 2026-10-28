@@ -1,4 +1,4 @@
-package io.github.bingwallpapers;
+package io.github.cw5n1h2txyewy.bingwallpapers;
 
 /** Small keyed snapshot cache that rejects expired or invalidated data. */
 public final class SnapshotCache<T> {

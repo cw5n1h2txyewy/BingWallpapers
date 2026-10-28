@@ -1,4 +1,4 @@
-package io.github.bingwallpapers;
+package io.github.cw5n1h2txyewy.bingwallpapers;
 
 import org.junit.Test;
 import static org.junit.Assert.*;

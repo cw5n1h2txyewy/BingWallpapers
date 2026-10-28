@@ -13,7 +13,13 @@
 - 已下载列表直接枚举 **`DCIM/BingWallpapers`** 中符合日期命名的文件，不依赖系统媒体库是否收录；调用系统图片查看器，分享 Bing 原图链接。
 - 通过 MediaStore 保存新图片；读取旧图片只需选择并授权这个目录，不申请全相册或所有文件权限。
 
-支持 Android 10 及以上，目标 Android 16（API 36）。独立包名 `io.github.bingwallpapers`，可以与旧软件共存。
+支持 Android 10 及以上，目标 Android 16（API 36）。独立包名 `io.github.cw5n1h2txyewy.bingwallpapers`，可以与旧软件共存。
+
+## 包名变更（1.0.7）
+
+包名及 Java 命名空间使用 GitHub 用户 ID：`io.github.cw5n1h2txyewy.bingwallpapers`。Android 将它视为新应用，不能直接覆盖原来的 `io.github.bingwallpapers`；安装后两者可共存，不会卸载旧版。
+
+共享图片继续保存在 `DCIM/BingWallpapers`，文件名不变。新应用需要重新选择一次该目录并设置主题、语言、通知权限；旧应用的私有偏好、缓存与目录授权不会自动迁移。授权目录后即可查看已有图片。
 
 ## 主题与语言（1.0.5）
 
@@ -95,8 +101,8 @@ $env:JAVA_TOOL_OPTIONS = "-Djdk.net.unixdomain.tmpdir=$tmpPath -Djava.io.tmpdir=
 ```powershell
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb shell am instrument -w io.github.bingwallpapers.test/io.github.bingwallpapers.DeviceChecks
-adb shell am start -n io.github.bingwallpapers/.MainActivity
+adb shell am instrument -w io.github.cw5n1h2txyewy.bingwallpapers.test/io.github.cw5n1h2txyewy.bingwallpapers.DeviceChecks
+adb shell am start -n io.github.cw5n1h2txyewy.bingwallpapers/.MainActivity
 ```
 
 集成检查会访问真实 Bing 并下载当前图片的四种尺寸到目标相册，保留结果方便检查；验证路径、发布状态、非空文件、重复下载无新增条目、无效 JPEG 拒绝、日期序列化和图片地址边界。失败输出包含 `FAIL`，成功包含 `PASS`；此测试需要网络和设备，不计入离线单元测试。

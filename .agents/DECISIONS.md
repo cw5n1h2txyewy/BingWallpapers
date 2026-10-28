@@ -55,3 +55,14 @@
 - 适用范围：API 29+；1.0.5；S23 Ultra SM-S9180 / Android 16 已验证。
 - 验证：构建及 18 项既有 JVM 测试通过；Lint 0 错误、4 警告；三套各 80 条字符串键和格式参数一致；APK 包含 ja、zh、night 配置。AppearanceChecks 六种组合及跟随系统检查 PASS；实际菜单、截图、设置持久性、日语下载状态、缓存和旧文件读取均已在 S23 Ultra 验证。
 - 替代方案：仅改变背景无法覆盖原生弹窗和文字对比；将界面语言绑定 Bing 地区会意外改变图片来源。
+
+## DEC-20261028-06：使用用户 GitHub 命名空间作为应用身份
+
+- 状态：accepted
+- 背景：用户提供 GitHub ID cw5n1h2txyewy，要求替换原 io.github.bingwallpapers 包名。
+- 决策：applicationId 与 namespace 同为 io.github.cw5n1h2txyewy.bingwallpapers，Java 主代码/单元测试/设备测试包及路径同步；内部权限以 applicationId 占位符生成，广播 action 使用新命名空间；版本 1.0.7。
+- 原因：与用户 GitHub 身份对应，并避免新旧包内部权限名称冲突。
+- 影响：Android 视为新应用，不能覆盖旧包；私有设置、缓存和持久目录授权不自动迁移；共享 DCIM/BingWallpapers 路径与文件名保持。旧应用保留，新应用需重新选择目录及通知选项。
+- 适用范围：1.0.7 起的应用和测试 APK；后续发布保持此 applicationId。
+- 验证：18 项单元测试、构建、Lint 通过；aapt2 确认主/测试包、组件和 INTERNAL 权限；DEX 无旧 Java 命名空间；S23 Ultra 安装启动及新 runner 的主题语言组合检查 PASS，旧包同时保留。
+- 替代方案：只修改 applicationId 而保留旧 namespace 会留下混用身份及文档路径，按用户要求一并统一。

@@ -1,4 +1,4 @@
-package io.github.bingwallpapers;
+package io.github.cw5n1h2txyewy.bingwallpapers;
 
 /** Bing size requests; downloaded dimensions are checked before publishing. */
 public enum Resolution {

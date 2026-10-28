@@ -77,3 +77,13 @@
 - 未运行项：其他 Android 版本/OEM、长批量网络任务中途的通知检查、超时分支未独立实测；未对无关主题/缓存功能重复全量设备测试。
 - 遗留风险：未发现本次修复的已知遗留问题；完成通知会保留静态提示直到被划掉或点击，这是预期行为。
 - 后续事项：无。
+
+## REVIEW-20261028-08：GitHub 用户包名
+
+- 变更摘要：1.0.7 将应用身份和 Java 命名空间改为 io.github.cw5n1h2txyewy.bingwallpapers，移动 main/test/androidTest 三套 Java 源目录，更新广播、权限、runner、README 命令及 AGENTS 路径。
+- 关键文件：app/build.gradle、AndroidManifest.xml、MainActivity.java、DownloadService.java、三套 Java 包目录、README.md、AGENTS.md。
+- 本地验证：assembleDebug、assembleDebugAndroidTest、testDebugUnitTest、lintDebug 全部成功；18 项单元测试通过；Lint 0 错误、4 警告；APK badging 显示新包和 versionCode 8 / versionName 1.0.7；测试 APK 为新包加 .test；Manifest 组件和 INTERNAL 权限均为新命名空间；DEX 未保留旧包类；git diff --check 通过。
+- 设备验证：S23 Ultra SM-S9180 / Android 16 安装两个新 APK 成功，新 runner 的 AppearanceChecks 完整 PASS；新组件 MainActivity 启动且 UI 节点归属新包，显示中文首页。旧应用和旧测试包仍保留，未卸载或清除旧数据。
+- 未运行项：新包尚未重新选择保存目录或开启通知权限，因此没有重复执行需要这些授权的下载/通知和旧图片访问设备测试；相关功能逻辑未变，包名和权限连接已通过构建、清单与启动检查。
+- 遗留风险：Android 不跨包继承私有设置、缓存和目录/通知授权；用户需在新应用重新设置。共享照片不变，选择原目录后可继续读取。
+- 后续事项：无代码后续事项；新包的初次授权由用户按需完成。

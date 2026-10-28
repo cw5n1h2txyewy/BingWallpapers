@@ -1,15 +1,15 @@
 plugins { id 'com.android.application' }
 
 android {
-    namespace 'io.github.bingwallpapers'
+    namespace 'io.github.cw5n1h2txyewy.bingwallpapers'
     compileSdk { version = release(36) { minorApiLevel = 1 } }
     defaultConfig {
-        applicationId 'io.github.bingwallpapers'
+        applicationId 'io.github.cw5n1h2txyewy.bingwallpapers'
         minSdk 29
         targetSdk 36
-        versionCode 7
-        versionName '1.0.6'
-        testInstrumentationRunner 'io.github.bingwallpapers.DeviceChecks'
+        versionCode 8
+        versionName '1.0.7'
+        testInstrumentationRunner 'io.github.cw5n1h2txyewy.bingwallpapers.DeviceChecks'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     buildTypes { release { minifyEnabled false } }

@@ -1,4 +1,4 @@
-package io.github.bingwallpapers;
+package io.github.cw5n1h2txyewy.bingwallpapers;
 
 import android.app.*;
 import android.content.*;
@@ -8,7 +8,7 @@ import org.json.*;
 
 /** Serial foreground download queue independent of Activity recreation. */
 public final class DownloadService extends Service {
-    public static final String ACTION = "io.github.bingwallpapers.DOWNLOAD_STATUS";
+    public static final String ACTION = "io.github.cw5n1h2txyewy.bingwallpapers.DOWNLOAD_STATUS";
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private static final String CHANNEL = "downloads";
 

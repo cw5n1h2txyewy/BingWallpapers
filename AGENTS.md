@@ -8,7 +8,7 @@
 
 ## 代码结构
 
-- app/src/main/java/io/github/bingwallpapers/：原生 Java 应用；界面、HTTP、元数据、尺寸、MediaStore 保存和前台队列分开维护。
+- app/src/main/java/io/github/cw5n1h2txyewy/bingwallpapers/：原生 Java 应用；界面、HTTP、元数据、尺寸、MediaStore 保存和前台队列分开维护。
 - app/src/test/：无需设备的尺寸与命名测试。
 - app/src/androidTest/：真实 Bing 与 MediaStore 集成检查。
 - screenshots/：用户原始参考截图，保留原样。
