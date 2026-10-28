@@ -34,3 +34,8 @@
   - 范围：applicationId、namespace、Java 包与目录、内部权限/广播、测试及文档
   - 依赖：用户 GitHub ID cw5n1h2txyewy；新包与旧包共存
   - 验收：构建和 Lint、18 项单元测试；APK identity/runner/权限均为新包名；可用设备安装启动；明确设置和目录授权不跨包迁移
+
+- [x] T-008 生产代码迁移到 Kotlin（2026-10-28）
+  - 范围：app/src/main、Gradle Kotlin 编译设置、README/AGENTS、原测试兼容与真机回归
+  - 依赖：AGP 9.2.1 内置 Kotlin；保留当前包名、文件/设置格式和原生 View
+  - 验收：生产代码 Kotlin 化；原 18 项 Java 单元测试与设备测试继续通过；构建及 Lint 通过；设备主题、缓存、通知、目录和下载按可用条件验证

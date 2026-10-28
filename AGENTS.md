@@ -8,7 +8,7 @@
 
 ## 代码结构
 
-- app/src/main/java/io/github/cw5n1h2txyewy/bingwallpapers/：原生 Java 应用；界面、HTTP、元数据、尺寸、MediaStore 保存和前台队列分开维护。
+- app/src/main/kotlin/io/github/cw5n1h2txyewy/bingwallpapers/：原生 Kotlin 应用；界面、HTTP、元数据、尺寸、MediaStore 保存和前台队列分开维护。
 - app/src/test/：无需设备的尺寸与命名测试。
 - app/src/androidTest/：真实 Bing 与 MediaStore 集成检查。
 - screenshots/：用户原始参考截图，保留原样。
@@ -16,11 +16,11 @@
 
 ## 开发环境与代码规范
 
-使用 Gradle Wrapper、Android SDK 和 Java，版本以 Gradle 配置为准；命令见 README。本项目不需要 Python 环境。
+使用 Gradle Wrapper、Android SDK、JDK 和 AGP 内置 Kotlin，版本以 Gradle 配置为准；命令见 README。本项目不需要 Python 环境。
 
-- 使用明确 Java 类型，类和重要方法使用简短 Javadoc；保持模块简单，避免无必要依赖及过度抽象。
+- 使用 Kotlin 的只读属性、明确的可空类型和简短 KDoc；保持模块简单，避免无必要依赖及过度抽象。保留 Java 测试的调用兼容性。
 - 网络、图片解码和文件 I/O 在后台线程执行；UI 更新回到主线程。处理 Activity 重建与服务生命周期。
-- 流、游标等资源使用 try-with-resources；捕获具体异常，保留上下文并向用户显示可操作的失败信息。
+- 流、游标等资源使用 use；捕获具体异常，保留上下文并向用户显示可操作的失败信息。
 - 新增平台 API 检查最低版本或适配，以 Lint 及设备验证确认兼容性。
 
 ## 下载与存储契约

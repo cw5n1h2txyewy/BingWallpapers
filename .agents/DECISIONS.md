@@ -66,3 +66,14 @@
 - 适用范围：1.0.7 起的应用和测试 APK；后续发布保持此 applicationId。
 - 验证：18 项单元测试、构建、Lint 通过；aapt2 确认主/测试包、组件和 INTERNAL 权限；DEX 无旧 Java 命名空间；S23 Ultra 安装启动及新 runner 的主题语言组合检查 PASS，旧包同时保留。
 - 替代方案：只修改 applicationId 而保留旧 namespace 会留下混用身份及文档路径，按用户要求一并统一。
+
+## DEC-20261028-07：生产源码迁移至 Kotlin
+
+- 状态：accepted
+- 背景：用户要求尝试将现有 Java 项目迁移到 Kotlin。
+- 决策：11 个生产类迁移至 main/kotlin；保留原生 View、ExecutorService 及既有存储/缓存/设置契约。使用 AGP 9.2.1 内置 Kotlin，JVM 目标 17，不额外应用 kotlin-android 插件。Java 单元测试和设备检查保留，通过 JVM 静态方法、字段和记录访问器保持调用兼容。
+- 原因：将语言迁移与界面框架、并发模型变更分开，减少行为变化；现有测试可直接验证跨语言兼容性及回归。
+- 影响：版本 1.0.8；包名和共享相册不变，可覆盖安装 1.0.7；首次构建需获取 Kotlin 编译器/标准库依赖。
+- 适用范围：本仓库 Android 应用，最低 API 29。
+- 验证：Android 官方内置 Kotlin 迁移文档 https://developer.android.com/build/migrate-to-built-in-kotlin；编译及行为检查结果见本任务 REVIEW。
+- 替代方案：同时引入 Compose 或协程会扩大本次迁移范围；应用当前 AGP 已内置的 kotlin-android 替代插件会冲突。

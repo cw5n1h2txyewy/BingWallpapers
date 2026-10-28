@@ -7,12 +7,13 @@ android {
         applicationId 'io.github.cw5n1h2txyewy.bingwallpapers'
         minSdk 29
         targetSdk 36
-        versionCode 8
-        versionName '1.0.7'
+        versionCode 9
+        versionName '1.0.8'
         testInstrumentationRunner 'io.github.cw5n1h2txyewy.bingwallpapers.DeviceChecks'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     buildTypes { release { minifyEnabled false } }
     bundle { language { enableSplit = false } }
 }
+kotlin { compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 } }
 dependencies { testImplementation 'junit:junit:4.13.2' }

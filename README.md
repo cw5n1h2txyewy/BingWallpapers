@@ -15,9 +15,15 @@
 
 支持 Android 10 及以上，目标 Android 16（API 36）。独立包名 `io.github.cw5n1h2txyewy.bingwallpapers`，可以与旧软件共存。
 
+## Kotlin 迁移（1.0.8）
+
+生产代码已迁移至 `app/src/main/kotlin/`，保留原生 View、后台执行队列和现有界面交互。包名、目录授权、偏好设置、缓存格式及原图命名保持兼容，可覆盖安装 1.0.7。
+
+使用 AGP 9.2.1 的[内置 Kotlin 支持](https://developer.android.com/build/migrate-to-built-in-kotlin)，Java 与 Kotlin 均以 JVM 17 为目标，无需额外应用 Kotlin Android 插件。首次构建会下载 Kotlin 编译器和标准库。原有 Java 单元测试与设备检查继续保留，用于验证迁移后的行为及 Java 调用兼容性。
+
 ## 包名变更（1.0.7）
 
-包名及 Java 命名空间使用 GitHub 用户 ID：`io.github.cw5n1h2txyewy.bingwallpapers`。Android 将它视为新应用，不能直接覆盖原来的 `io.github.bingwallpapers`；安装后两者可共存，不会卸载旧版。
+包名及源码命名空间使用 GitHub 用户 ID：`io.github.cw5n1h2txyewy.bingwallpapers`。Android 将它视为新应用，不能直接覆盖原来的 `io.github.bingwallpapers`；安装后两者可共存，不会卸载旧版。
 
 共享图片继续保存在 `DCIM/BingWallpapers`，文件名不变。新应用需要重新选择一次该目录并设置主题、语言、通知权限；旧应用的私有偏好、缓存与目录授权不会自动迁移。授权目录后即可查看已有图片。
 
